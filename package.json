@@ -1,0 +1,13 @@
+{
+  "name": "armyworm-guard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-powered fall armyworm detection, spread prediction, and SMS alert system",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "twilio": "^5.3.5"
+  }
+}

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ArmywormGuard — Fall Armyworm Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --field-dark: #1C2818;
+    --field: #24331F;
+    --field-light: #34482B;
+    --husk: #F3EEE1;
+    --husk-dim: #C9C2AC;
+    --leaf: #7FA65B;
+    --amber: #D9A441;
+    --clay: #A63A2C;
+    --line: rgba(243,238,225,0.14);
+    --radius: 3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--field-dark);
+    color: var(--husk);
+    font-family: "IBM Plex Sans", sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  a{color:inherit;}
+
+  /* Signature background texture: sparse window-pane leaf-damage marks */
+  .field-texture{
+    position: fixed; inset: 0; z-index: 0; pointer-events:none; opacity:0.5;
+    background-image:
+      radial-gradient(1.5px 3px at 8% 20%, var(--field-light) 40%, transparent 41%),
+      radial-gradient(1.5px 3px at 22% 65%, var(--field-light) 40%, transparent 41%),
+      radial-gradient(1.5px 3px at 41% 12%, var(--field-light) 40%, transparent 41%),
+      radial-gradient(1.5px 3px at 63% 80%, var(--field-light) 40%, transparent 41%),
+      radial-gradient(1.5px 3px at 78% 30%, var(--field-light) 40%, transparent 41%),
+      radial-gradient(1.5px 3px at 90% 58%, var(--field-light) 40%, transparent 41%);
+  }
+
+  .wrap{ position:relative; z-index:1; max-width: 760px; margin: 0 auto; padding: 48px 24px 96px; }
+
+  header{ display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:20px; margin-bottom: 36px; flex-wrap: wrap; gap:8px;}
+  .wordmark{ font-family:"Fraunces", serif; font-weight:600; font-size: 1.6rem; letter-spacing:-0.01em;}
+  .wordmark span{ color: var(--leaf); }
+  .tagline{ font-family:"IBM Plex Mono", monospace; font-size:0.75rem; color: var(--husk-dim); text-transform:uppercase; letter-spacing:0.08em;}
+
+  h1{ font-family:"Fraunces", serif; font-weight:500; font-size: clamp(1.6rem, 4vw, 2.2rem); line-height:1.15; margin: 0 0 12px; }
+  .lede{ color: var(--husk-dim); max-width: 46ch; margin: 0 0 40px; }
+
+  section{ margin-bottom: 40px; }
+  .eyebrow{ font-family:"IBM Plex Mono", monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color: var(--leaf); margin-bottom: 10px; }
+
+  /* Scout card / dropzone */
+  .scout-card{
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 32px 24px;
+    text-align:center;
+    background: rgba(52,72,43,0.35);
+    transition: border-color .15s ease, background .15s ease;
+    cursor:pointer;
+  }
+  .scout-card:hover, .scout-card.drag{ border-color: var(--leaf); background: rgba(127,166,91,0.1); }
+  .scout-card input{ display:none; }
+  .scout-icon{ width:40px; height:40px; margin:0 auto 14px; display:block; color: var(--leaf); }
+  .scout-card p{ margin:4px 0; color: var(--husk-dim); font-size:0.9rem;}
+  .scout-card strong{ color: var(--husk); }
+
+  #preview{ display:none; max-width:100%; border-radius: var(--radius); margin-top:16px; max-height: 260px; object-fit:cover; }
+
+  button{
+    font-family:"IBM Plex Sans", sans-serif; font-weight:600; font-size:0.85rem;
+    background: var(--leaf); color: var(--field-dark); border:none; border-radius: var(--radius);
+    padding: 12px 20px; cursor:pointer; letter-spacing:0.01em;
+  }
+  button:hover{ filter: brightness(1.08); }
+  button:disabled{ opacity:0.5; cursor:not-allowed; }
+  button.secondary{ background:transparent; color: var(--husk); border:1px solid var(--line); }
+
+  .actions{ margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; }
+
+  /* Result card */
+  .result-card{ border:1px solid var(--line); border-radius: var(--radius); padding:24px; background: rgba(28,40,24,0.6); display:none; }
+  .result-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px;}
+  .badge{ font-family:"IBM Plex Mono", monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; padding:4px 10px; border-radius:20px; border:1px solid var(--line);}
+  .badge.none{ color: var(--leaf); border-color: var(--leaf); }
+  .badge.early{ color: var(--amber); border-color: var(--amber); }
+  .badge.moderate{ color: var(--amber); border-color: var(--amber); background: rgba(217,164,65,0.12); }
+  .badge.severe{ color: var(--clay); border-color: var(--clay); background: rgba(166,58,44,0.14); }
+  .confidence{ color: var(--husk-dim); font-size:0.8rem; font-family:"IBM Plex Mono", monospace; }
+  .result-body p{ margin: 6px 0; font-size:0.92rem; }
+  .result-body .label{ color: var(--husk-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; margin-top:14px; font-family:"IBM Plex Mono", monospace;}
+
+  .risk-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:1px; background: var(--line); border-radius: var(--radius); overflow:hidden; margin-top:14px; }
+  .risk-cell{ background: var(--field-dark); padding:16px; }
+  .risk-cell .n{ font-family:"Fraunces", serif; font-size:1.6rem; }
+  .risk-cell .l{ font-size:0.7rem; color: var(--husk-dim); text-transform:uppercase; letter-spacing:0.06em; font-family:"IBM Plex Mono", monospace; margin-top:4px;}
+
+  .alert-row{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  input[type=tel]{
+    flex:1; min-width:200px; background: rgba(0,0,0,0.2); border:1px solid var(--line); border-radius: var(--radius);
+    padding: 11px 12px; color: var(--husk); font-family:"IBM Plex Sans", sans-serif;
+  }
+  input[type=tel]::placeholder{ color: var(--husk-dim); }
+
+  #alertStatus{ font-size:0.8rem; color: var(--husk-dim); margin-top:10px; font-family:"IBM Plex Mono", monospace; }
+
+  .note{ font-size:0.78rem; color: var(--husk-dim); border-left:2px solid var(--line); padding-left:12px; margin-top:20px; }
+
+  .loading{ color: var(--husk-dim); font-family:"IBM Plex Mono", monospace; font-size:0.85rem; display:none; }
+
+  footer{ margin-top:60px; padding-top:20px; border-top:1px solid var(--line); color: var(--husk-dim); font-size:0.78rem; }
+</style>
+</head>
+<body>
+<div class="field-texture"></div>
+<div class="wrap">
+
+  <header>
+    <div class="wordmark">Armyworm<span>Guard</span></div>
+    <div class="tagline">Detect · Predict · Alert</div>
+  </header>
+
+  <h1>Photograph a leaf. Know the risk in seconds.</h1>
+  <p class="lede">Upload a photo of a maize leaf or damaged crop. ArmywormGuard checks it for fall armyworm damage, estimates how fast it could spread nearby, and can text the farmer a treatment step immediately.</p>
+
+  <section>
+    <div class="eyebrow">01 — Scout</div>
+    <div class="scout-card" id="dropzone">
+      <svg class="scout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+        <path d="M4 8.5V6.2a1 1 0 0 1 1-1h2.3L8.7 3.4a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4l1.4 1.8H19a1 1 0 0 1 1 1v11.6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8.5Z"/>
+        <circle cx="12" cy="12.5" r="3.6"/>
+      </svg>
+      <p><strong>Tap to take or upload a photo</strong></p>
+      <p>Clear shot of the leaf whorl works best</p>
+      <input type="file" id="fileInput" accept="image/*" capture="environment" />
+      <img id="preview" alt="Selected leaf photo preview" />
+    </div>
+    <div class="actions">
+      <button id="scanBtn" disabled>Scan for armyworm</button>
+      <button class="secondary" id="clearBtn" type="button">Clear</button>
+    </div>
+    <div class="loading" id="loading">Analyzing image…</div>
+  </section>
+
+  <section>
+    <div class="eyebrow">02 — Result</div>
+    <div class="result-card" id="resultCard">
+      <div class="result-header">
+        <span class="badge none" id="stageBadge">—</span>
+        <span class="confidence" id="confidenceText"></span>
+      </div>
+      <div class="result-body">
+        <p id="affectedArea"></p>
+        <div class="label">Recommended action</div>
+        <p id="recommendation"></p>
+
+        <div class="label">Spread risk (nearby confirmed cases, this session)</div>
+        <div class="risk-grid">
+          <div class="risk-cell"><div class="n" id="riskScore">—</div><div class="l">Risk score</div></div>
+          <div class="risk-cell"><div class="n" id="riskLevel">—</div><div class="l">Risk level</div></div>
+          <div class="risk-cell"><div class="n" id="spreadRate">—</div><div class="l">Km / week est.</div></div>
+        </div>
+
+        <div class="label">Alert the farmer</div>
+        <div class="alert-row">
+          <input type="tel" id="phoneInput" placeholder="+250 7xx xxx xxx" />
+          <button id="alertBtn">Send SMS alert</button>
+        </div>
+        <div id="alertStatus"></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="note">Spread risk is a rule-based estimate from detections logged in this browser session — not a trained forecasting model. SMS sends only once Twilio credentials are configured on the server; otherwise the alert is simulated and shown here instead.</p>
+
+  <footer>ArmywormGuard — built for fall armyworm scouting in maize fields.</footer>
+</div>
+
+<script>
+const fileInput = document.getElementById('fileInput');
+const dropzone = document.getElementById('dropzone');
+const preview = document.getElementById('preview');
+const scanBtn = document.getElementById('scanBtn');
+const clearBtn = document.getElementById('clearBtn');
+const loading = document.getElementById('loading');
+const resultCard = document.getElementById('resultCard');
+const stageBadge = document.getElementById('stageBadge');
+const confidenceText = document.getElementById('confidenceText');
+const affectedArea = document.getElementById('affectedArea');
+const recommendation = document.getElementById('recommendation');
+const riskScoreEl = document.getElementById('riskScore');
+const riskLevelEl = document.getElementById('riskLevel');
+const spreadRateEl = document.getElementById('spreadRate');
+const phoneInput = document.getElementById('phoneInput');
+const alertBtn = document.getElementById('alertBtn');
+const alertStatus = document.getElementById('alertStatus');
+
+let base64Image = null;
+let mediaType = null;
+let lastResult = null;
+
+fileInput.addEventListener('change', handleFile);
+dropzone.addEventListener('click', () => fileInput.click());
+['dragover','dragenter'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+dropzone.addEventListener('drop', e => {
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    fileInput.files = e.dataTransfer.files;
+    handleFile();
+  }
+});
+
+function handleFile(){
+  const file = fileInput.files[0];
+  if (!file) return;
+  mediaType = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = reader.result; // data:image/jpeg;base64,xxxx
+    base64Image = result.split(',')[1];
+    preview.src = result;
+    preview.style.display = 'block';
+    scanBtn.disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+clearBtn.addEventListener('click', () => {
+  fileInput.value = '';
+  preview.src = '';
+  preview.style.display = 'none';
+  base64Image = null;
+  scanBtn.disabled = true;
+  resultCard.style.display = 'none';
+});
+
+scanBtn.addEventListener('click', async () => {
+  if (!base64Image) return;
+  loading.style.display = 'block';
+  resultCard.style.display = 'none';
+  scanBtn.disabled = true;
+
+  try {
+    const detectRes = await fetch('/api/detect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64Image, mediaType })
+    });
+    const detection = await detectRes.json();
+    if (detection.error) throw new Error(detection.error);
+
+    lastResult = detection;
+    renderDetection(detection);
+
+    // Log this detection locally (session-scoped) and get a spread estimate
+    const coords = await getApproxLocation();
+    const newDetection = {
+      lat: coords.lat, lng: coords.lng,
+      timestamp: new Date().toISOString(),
+      stage: detection.stage
+    };
+    const history = JSON.parse(sessionStorage.getItem('detections') || '[]');
+
+    const spreadRes = await fetch('/api/predict-spread', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ detections: history, newDetection })
+    });
+    const spread = await spreadRes.json();
+    renderSpread(spread);
+
+    history.push(newDetection);
+    sessionStorage.setItem('detections', JSON.stringify(history));
+
+  } catch (err) {
+    affectedArea.textContent = 'Something went wrong: ' + err.message;
+    resultCard.style.display = 'block';
+  } finally {
+    loading.style.display = 'none';
+    scanBtn.disabled = false;
+  }
+});
+
+function renderDetection(d){
+  stageBadge.textContent = d.stage;
+  stageBadge.className = 'badge ' + d.stage;
+  confidenceText.textContent = 'confidence ' + Math.round((d.confidence || 0) * 100) + '%';
+  affectedArea.textContent = d.affectedArea || '—';
+  recommendation.textContent = d.recommendation || '—';
+  resultCard.style.display = 'block';
+}
+
+function renderSpread(s){
+  riskScoreEl.textContent = s.riskScore ?? '—';
+  riskLevelEl.textContent = s.riskLevel ?? '—';
+  spreadRateEl.textContent = s.estimatedSpreadKmPerWeek ?? '—';
+}
+
+function getApproxLocation(){
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve({ lat: -1.4995, lng: 29.6335 }); // Musanze fallback
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve({ lat: -1.4995, lng: 29.6335 }),
+      { timeout: 4000 }
+    );
+  });
+}
+
+alertBtn.addEventListener('click', async () => {
+  const phone = phoneInput.value.trim();
+  if (!phone) { alertStatus.textContent = 'Enter a phone number first.'; return; }
+  if (!lastResult) { alertStatus.textContent = 'Scan a leaf first.'; return; }
+
+  alertStatus.textContent = 'Sending…';
+  try {
+    const res = await fetch('/api/alert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone,
+        stage: lastResult.stage,
+        riskLevel: riskLevelEl.textContent,
+        recommendation: lastResult.recommendation
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    alertStatus.textContent = data.simulated
+      ? 'Simulated (Twilio not configured): "' + data.message + '"'
+      : 'Sent — SID ' + data.sid;
+  } catch (err) {
+    alertStatus.textContent = 'Failed: ' + err.message;
+  }
+});
+</script>
+</body>
+</html>
