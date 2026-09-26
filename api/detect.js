@@ -5,7 +5,7 @@
 // Uses Google's Gemini API (free tier available) for image classification.
 // Get a key at https://aistudio.google.com/apikey
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-flash-latest";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
