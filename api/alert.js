@@ -1,46 +1,93 @@
-import twilio from "twilio";
+import nodemailer from "nodemailer";
 
 // POST /api/alert
-// body: { phone: "+250xxxxxxxxx", stage, riskLevel, recommendation }
-// Sends an SMS to the farmer. Requires Twilio env vars to be set in Vercel;
-// if they're missing, logs the message instead of failing the whole flow,
-// so the detect->predict->alert pipeline stays demonstrable without a Twilio account.
+// body: { channel: "telegram" | "email", to, stage, riskLevel, recommendation }
+//   telegram: `to` is the farmer's numeric Telegram chat ID (falls back to TELEGRAM_CHAT_ID env var)
+//   email:    `to` is the farmer's email address
+//
+// If the credentials for a channel are missing, the message is simulated (returned, not sent)
+// so the detect -> predict -> alert flow can still be demoed.
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Use POST" });
   }
 
-  const { phone, stage, riskLevel, recommendation } = req.body || {};
-  if (!phone) {
-    return res.status(400).json({ error: "Missing 'phone'" });
+  const { channel, to, stage, riskLevel, recommendation } = req.body || {};
+  const text = buildMessage({ stage, riskLevel, recommendation });
+
+  if (channel === "telegram") return sendTelegram(res, to, text);
+  if (channel === "email") return sendEmail(res, to, text, stage);
+
+  return res.status(400).json({ error: "channel must be 'telegram' or 'email'" });
+}
+
+async function sendTelegram(res, to, text) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = (to || process.env.TELEGRAM_CHAT_ID || "").toString().trim();
+
+  if (!chatId) {
+    return res.status(400).json({ error: "Missing Telegram chat ID" });
   }
-
-  const body = buildMessage({ stage, riskLevel, recommendation });
-
-  const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER } = process.env;
-
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER) {
-    console.warn("Twilio env vars not set — simulating SMS instead of sending:", body);
+  if (!token) {
     return res.status(200).json({
       sent: false,
       simulated: true,
-      message: body,
-      note:
-        "Twilio credentials not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER in Vercel to send real SMS.",
+      channel: "telegram",
+      message: text,
+      note: "TELEGRAM_BOT_TOKEN is not set on the server, so nothing was sent.",
     });
   }
 
   try {
-    const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
-    const result = await client.messages.create({
-      to: phone,
-      from: TWILIO_FROM_NUMBER,
-      body,
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text }),
     });
-    return res.status(200).json({ sent: true, simulated: false, sid: result.sid });
+    const data = await r.json();
+    if (!data.ok) {
+      // Typical cause: the farmer never pressed Start on the bot ("chat not found" / "bot can't initiate conversation")
+      return res.status(502).json({ error: "Telegram: " + (data.description || "send failed") });
+    }
+    return res.status(200).json({ sent: true, simulated: false, channel: "telegram" });
   } catch (err) {
-    console.error("alert.js error:", err);
-    return res.status(500).json({ error: "SMS send failed", detail: err.message });
+    console.error("telegram error:", err);
+    return res.status(500).json({ error: "Telegram request failed: " + err.message });
+  }
+}
+
+async function sendEmail(res, to, text, stage) {
+  const { GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
+  const address = (to || "").trim();
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+    return res.status(400).json({ error: "Enter a valid email address" });
+  }
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+    return res.status(200).json({
+      sent: false,
+      simulated: true,
+      channel: "email",
+      message: text,
+      note: "GMAIL_USER / GMAIL_APP_PASSWORD are not set on the server, so nothing was sent.",
+    });
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
+    });
+    await transporter.sendMail({
+      from: `ArmywormGuard <${GMAIL_USER}>`,
+      to: address,
+      subject: `ArmywormGuard alert: ${(stage || "unknown").toUpperCase()} fall armyworm damage`,
+      text,
+    });
+    return res.status(200).json({ sent: true, simulated: false, channel: "email" });
+  } catch (err) {
+    console.error("email error:", err);
+    return res.status(500).json({ error: "Email failed: " + err.message });
   }
 }
 
@@ -48,8 +95,9 @@ function buildMessage({ stage, riskLevel, recommendation }) {
   const stageLabel = stage ? stage.toUpperCase() : "UNKNOWN";
   const riskLabel = riskLevel ? riskLevel.toUpperCase() : "UNKNOWN";
   return (
-    `ArmywormGuard Alert: ${stageLabel} fall armyworm damage detected. ` +
-    `Regional spread risk: ${riskLabel}. ` +
-    `Action: ${recommendation || "Scout your field and consult your local agronomy extension officer."}`
+    `ArmywormGuard alert\n` +
+    `Fall armyworm damage: ${stageLabel}\n` +
+    `Spread risk nearby: ${riskLabel}\n` +
+    `What to do: ${recommendation || "Scout your field and consult your local agronomy extension officer."}`
   );
 }

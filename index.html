@@ -99,14 +99,17 @@
   .risk-cell .n{ font-family:"Fraunces", serif; font-size:1.6rem; }
   .risk-cell .l{ font-size:0.7rem; color: var(--husk-dim); text-transform:uppercase; letter-spacing:0.06em; font-family:"IBM Plex Mono", monospace; margin-top:4px;}
 
-  .alert-row{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
-  input[type=tel]{
-    flex:1; min-width:200px; background: rgba(0,0,0,0.2); border:1px solid var(--line); border-radius: var(--radius);
-    padding: 11px 12px; color: var(--husk); font-family:"IBM Plex Sans", sans-serif;
+  .alert-row{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  select, input[type=text], input[type=email]{
+    background: rgba(0,0,0,0.2); border:1px solid var(--line); border-radius: var(--radius);
+    padding: 11px 12px; color: var(--husk); font-family:"IBM Plex Sans", sans-serif; font-size:0.9rem;
   }
-  input[type=tel]::placeholder{ color: var(--husk-dim); }
+  select option{ background: var(--field-dark); color: var(--husk); }
+  #destInput{ flex:1; min-width:200px; }
+  #destInput::placeholder{ color: var(--husk-dim); }
+  #destHelp{ font-size:0.75rem; color: var(--husk-dim); margin-top:8px; }
 
-  #alertStatus{ font-size:0.8rem; color: var(--husk-dim); margin-top:10px; font-family:"IBM Plex Mono", monospace; }
+  #alertStatus{ font-size:0.8rem; color: var(--husk-dim); margin-top:10px; font-family:"IBM Plex Mono", monospace; white-space:pre-wrap; }
 
   .note{ font-size:0.78rem; color: var(--husk-dim); border-left:2px solid var(--line); padding-left:12px; margin-top:20px; }
 
@@ -125,7 +128,7 @@
   </header>
 
   <h1>Photograph a leaf. Know the risk in seconds.</h1>
-  <p class="lede">Upload a photo of a maize leaf or damaged crop. ArmywormGuard checks it for fall armyworm damage, estimates how fast it could spread nearby, and can text the farmer a treatment step immediately.</p>
+  <p class="lede">Upload a photo of a maize leaf or damaged crop. ArmywormGuard checks it for fall armyworm damage, estimates how fast it could spread nearby, and can message the farmer a treatment step on Telegram or email.</p>
 
   <section>
     <div class="eyebrow">01 — Scout</div>
@@ -167,15 +170,20 @@
 
         <div class="label">Alert the farmer</div>
         <div class="alert-row">
-          <input type="tel" id="phoneInput" placeholder="+250 7xx xxx xxx" />
-          <button id="alertBtn">Send SMS alert</button>
+          <select id="channelSelect" aria-label="Alert channel">
+            <option value="telegram">Telegram</option>
+            <option value="email">Email</option>
+          </select>
+          <input type="text" id="destInput" />
+          <button id="alertBtn">Send alert</button>
         </div>
+        <div id="destHelp"></div>
         <div id="alertStatus"></div>
       </div>
     </div>
   </section>
 
-  <p class="note">Spread risk is a rule-based estimate from detections logged in this browser session — not a trained forecasting model. SMS sends only once Twilio credentials are configured on the server; otherwise the alert is simulated and shown here instead.</p>
+  <p class="note">Spread risk is a rule-based estimate from detections logged in this browser session — not a trained forecasting model. Alerts are only sent once the Telegram bot token or Gmail credentials are configured on the server; otherwise the alert is simulated and shown here instead.</p>
 
   <footer>ArmywormGuard — built for fall armyworm scouting in maize fields.</footer>
 </div>
@@ -195,13 +203,30 @@ const recommendation = document.getElementById('recommendation');
 const riskScoreEl = document.getElementById('riskScore');
 const riskLevelEl = document.getElementById('riskLevel');
 const spreadRateEl = document.getElementById('spreadRate');
-const phoneInput = document.getElementById('phoneInput');
+const channelSelect = document.getElementById('channelSelect');
+const destInput = document.getElementById('destInput');
+const destHelp = document.getElementById('destHelp');
 const alertBtn = document.getElementById('alertBtn');
 const alertStatus = document.getElementById('alertStatus');
 
 let base64Image = null;
 let mediaType = null;
 let lastResult = null;
+
+// POST JSON and always give a readable error, even when the server returns an HTML error page
+async function postJSON(url, body){
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const raw = await res.text();
+  let data;
+  try { data = JSON.parse(raw); }
+  catch { throw new Error('Server returned ' + res.status + ': ' + raw.slice(0, 140)); }
+  if (data.error) throw new Error(data.error);
+  return data;
+}
 
 fileInput.addEventListener('change', handleFile);
 dropzone.addEventListener('click', () => fileInput.click());
@@ -214,6 +239,7 @@ dropzone.addEventListener('drop', e => {
   }
 });
 
+// Resize to max 1024px and re-encode as JPEG so the upload stays under Vercel's ~4.5MB body limit
 function handleFile(){
   const file = fileInput.files[0];
   if (!file) return;
@@ -264,13 +290,7 @@ scanBtn.addEventListener('click', async () => {
   scanBtn.disabled = true;
 
   try {
-    const detectRes = await fetch('/api/detect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64Image, mediaType })
-    });
-    const detection = await detectRes.json();
-    if (detection.error) throw new Error(detection.error);
+    const detection = await postJSON('/api/detect', { image: base64Image, mediaType });
 
     lastResult = detection;
     renderDetection(detection);
@@ -283,12 +303,7 @@ scanBtn.addEventListener('click', async () => {
     };
     const history = JSON.parse(sessionStorage.getItem('detections') || '[]');
 
-    const spreadRes = await fetch('/api/predict-spread', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ detections: history, newDetection })
-    });
-    const spread = await spreadRes.json();
+    const spread = await postJSON('/api/predict-spread', { detections: history, newDetection });
     renderSpread(spread);
 
     history.push(newDetection);
@@ -329,28 +344,54 @@ function getApproxLocation(){
   });
 }
 
+// ---- Alert destination (Telegram chat ID or email), remembered per channel on this device ----
+function loadSaved(channel){
+  try { return localStorage.getItem('alertTo_' + channel) || ''; } catch { return ''; }
+}
+function saveDest(channel, value){
+  try { localStorage.setItem('alertTo_' + channel, value); localStorage.setItem('alertChannel', channel); } catch {}
+}
+
+function applyChannel(){
+  const channel = channelSelect.value;
+  if (channel === 'telegram') {
+    destInput.type = 'text';
+    destInput.placeholder = 'Telegram chat ID (a number)';
+    destHelp.textContent = 'The farmer must open the bot and press Start first. To find a chat ID, message @userinfobot on Telegram.';
+  } else {
+    destInput.type = 'email';
+    destInput.placeholder = 'farmer@example.com';
+    destHelp.textContent = 'The alert is sent from the Gmail account configured on the server.';
+  }
+  destInput.value = loadSaved(channel);
+}
+
+try {
+  const savedChannel = localStorage.getItem('alertChannel');
+  if (savedChannel === 'telegram' || savedChannel === 'email') channelSelect.value = savedChannel;
+} catch {}
+channelSelect.addEventListener('change', applyChannel);
+applyChannel();
+
 alertBtn.addEventListener('click', async () => {
-  const phone = phoneInput.value.trim();
-  if (!phone) { alertStatus.textContent = 'Enter a phone number first.'; return; }
+  const channel = channelSelect.value;
+  const to = destInput.value.trim();
+  if (!to) { alertStatus.textContent = channel === 'telegram' ? 'Enter a Telegram chat ID first.' : 'Enter an email address first.'; return; }
   if (!lastResult) { alertStatus.textContent = 'Scan a leaf first.'; return; }
 
   alertStatus.textContent = 'Sending…';
   try {
-    const res = await fetch('/api/alert', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phone,
-        stage: lastResult.stage,
-        riskLevel: riskLevelEl.textContent,
-        recommendation: lastResult.recommendation
-      })
+    const data = await postJSON('/api/alert', {
+      channel,
+      to,
+      stage: lastResult.stage,
+      riskLevel: riskLevelEl.textContent,
+      recommendation: lastResult.recommendation
     });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    saveDest(channel, to);
     alertStatus.textContent = data.simulated
-      ? 'Simulated (Twilio not configured): "' + data.message + '"'
-      : 'Sent — SID ' + data.sid;
+      ? 'Simulated (' + data.note + ')\n\n' + data.message
+      : 'Sent via ' + (channel === 'telegram' ? 'Telegram' : 'email') + '.';
   } catch (err) {
     alertStatus.textContent = 'Failed: ' + err.message;
   }

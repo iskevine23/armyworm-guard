@@ -2,11 +2,11 @@
   "name": "armyworm-guard",
   "version": "1.0.0",
   "private": true,
-  "description": "AI-powered fall armyworm detection, spread prediction, and SMS alert system",
+  "description": "AI-powered fall armyworm detection, spread prediction, and Telegram/email alerts",
   "scripts": {
     "dev": "vercel dev"
   },
   "dependencies": {
-    "twilio": "^5.3.5"
+    "nodemailer": "^6.9.16"
   }
 }
