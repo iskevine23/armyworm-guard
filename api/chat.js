@@ -3,13 +3,15 @@
 // returns: { reply }
 //
 // A small assistant limited to fall armyworm and crop protection. Uses the same Gemini key and
-// the same primary/fallback model settings as /api/detect (GEMINI_MODEL, GEMINI_FALLBACK_MODEL).
+// the same primary/fallback model settings as /api/detect (GEMINI_MODELS).
 //
 // NOTE: this endpoint is public, so anyone with the site URL can use your Gemini quota.
 // Input sizes are capped below, but there is no per-user rate limit yet.
 
-const PRIMARY = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
-const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || "gemini-flash-latest";
+const MODELS = (process.env.GEMINI_MODELS || "gemini-3.5-flash-lite,gemini-3.8-flash,gemini-3.1-flash-lite")
+  .split(",")
+  .map((m) => m.trim())
+  .filter(Boolean);
 const DEADLINE_MS = 22000;
 const RETRY_STATUSES = [404, 429, 500, 503];
 const MAX_MESSAGES = 7; // odd number, so the kept slice starts and ends on a user turn
@@ -76,7 +78,8 @@ export default async function handler(req, res) {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEADLINE_MS);
-  const attempts = [PRIMARY, FALLBACK, PRIMARY];
+  const attempts = [...MODELS, MODELS[0]];
+  const tried = [];
   let lastError = "";
 
   try {
@@ -105,6 +108,7 @@ export default async function handler(req, res) {
 
       const errText = await r.text();
       lastError = `${model} -> ${r.status}: ${errText.slice(0, 300)}`;
+      tried.push(`${model} ${r.status}`);
       console.error("Gemini chat error:", lastError);
 
       if (!RETRY_STATUSES.includes(r.status)) {
@@ -114,11 +118,11 @@ export default async function handler(req, res) {
     }
 
     return res.status(503).json({
-      error: "The assistant is busy right now. Please try again in a minute. Last error: " + lastError.slice(0, 200),
+      error: "The assistant is busy right now. Please try again in a minute. Tried: " + tried.join(", ") + ". Last error: " + lastError.slice(0, 200),
     });
   } catch (err) {
     if (err.name === "AbortError") {
-      return res.status(504).json({ error: "The assistant took too long. Please try again." });
+      return res.status(504).json({ error: "The assistant took too long. Please try again. Tried: " + (tried.join(", ") || "nothing finished") });
     }
     console.error("chat.js error:", err);
     return res.status(500).json({ error: "Chat failed: " + err.message });
