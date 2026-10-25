@@ -112,6 +112,15 @@
 
   #alertStatus{ font-size:0.8rem; color: var(--husk-dim); margin-top:10px; font-family:"IBM Plex Mono", monospace; white-space:pre-wrap; }
 
+  .chat-box{ border:1px solid var(--line); border-radius: var(--radius); background: rgba(28,40,24,0.6); padding:16px; }
+  #chatLog{ max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+  .chat-msg{ padding:10px 12px; border-radius: var(--radius); font-size:0.9rem; white-space:pre-wrap; max-width:90%; }
+  .chat-user{ align-self:flex-end; background: rgba(127,166,91,0.22); }
+  .chat-bot{ align-self:flex-start; background: rgba(243,238,225,0.07); }
+  .chat-chips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .chat-chips button{ background:transparent; color: var(--husk-dim); border:1px solid var(--line); font-weight:400; font-size:0.78rem; padding:6px 10px; }
+  .chat-row{ display:flex; gap:10px; }
+  #chatInput{ flex:1; min-width:0; }
   .note{ font-size:0.78rem; color: var(--husk-dim); border-left:2px solid var(--line); padding-left:12px; margin-top:20px; }
 
   .loading{ color: var(--husk-dim); font-family:"IBM Plex Mono", monospace; font-size:0.85rem; display:none; }
@@ -186,6 +195,25 @@
         </div>
         <p id="noAlertNote" class="risk-basis" style="display:none">No damage was found, so no alert is needed.</p>
       </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">03 — Ask</div>
+    <div class="chat-box">
+      <div id="chatLog" aria-live="polite">
+        <div class="chat-msg chat-bot">Ask me about fall armyworm: how to scout, what the damage stages mean, or what to do next. I answer in English, Kinyarwanda, French or Swahili.</div>
+      </div>
+      <div class="chat-chips">
+        <button type="button" class="chip" data-q="How do I scout my maize field for fall armyworm?">How do I scout?</button>
+        <button type="button" class="chip" data-q="When should I spray, and when is it not needed?">When to spray?</button>
+        <button type="button" class="chip" data-q="Are neem-based products safe and do they work?">Is neem safe?</button>
+      </div>
+      <div class="chat-row">
+        <input type="text" id="chatInput" maxlength="400" placeholder="Type your question…" />
+        <button id="chatSend" type="button">Ask</button>
+      </div>
+      <div class="risk-basis">AI answers can be wrong. Before spraying, check with your local agronomist or agro-dealer and follow the product label.</div>
     </div>
   </section>
 
@@ -431,6 +459,53 @@ alertBtn.addEventListener('click', async () => {
     alertStatus.textContent = 'Failed: ' + err.message;
   }
 });
+
+// ---- Chat assistant ----
+const chatLog = document.getElementById('chatLog');
+const chatInput = document.getElementById('chatInput');
+const chatSend = document.getElementById('chatSend');
+const chatHistory = []; // { role: 'user' | 'model', text }
+
+function addChatMsg(role, text){
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + (role === 'user' ? 'chat-user' : 'chat-bot');
+  div.textContent = text;
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return div;
+}
+
+async function sendChat(text){
+  text = (text || '').trim();
+  if (!text || chatSend.disabled) return;
+  chatInput.value = '';
+  addChatMsg('user', text);
+  chatHistory.push({ role: 'user', text });
+  chatSend.disabled = true;
+  const pending = addChatMsg('model', 'Thinking…');
+  try {
+    const context = lastResult ? {
+      stage: lastResult.stage,
+      affectedArea: lastResult.affectedArea,
+      recommendation: lastResult.recommendation,
+      riskLevel: riskLevelEl.textContent
+    } : null;
+    // history alternates user/model and ends on a user turn, so the last 7 start on a user turn
+    const data = await postJSON('/api/chat', { messages: chatHistory.slice(-7), context });
+    pending.textContent = data.reply;
+    chatHistory.push({ role: 'model', text: data.reply });
+  } catch (err) {
+    pending.textContent = 'Could not get an answer: ' + err.message;
+    chatHistory.pop(); // drop the unanswered question so the history keeps alternating
+  } finally {
+    chatSend.disabled = false;
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+}
+
+chatSend.addEventListener('click', () => sendChat(chatInput.value));
+chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendChat(chatInput.value); } });
+document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => sendChat(b.dataset.q)));
 </script>
 </body>
 </html>
