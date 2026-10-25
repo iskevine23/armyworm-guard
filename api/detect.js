@@ -79,7 +79,7 @@ If the image is not a crop/leaf photo at all, or too unclear to assess, set pest
     try {
       parsed = JSON.parse(cleaned);
     } catch (e) {
-      return res.status(502).json({ error: "Model did not return valid JSON", raw });
+      return res.status(502).json({ error: "Gemini API request failed: " + errText.slice(0, 400) });
     }
 
     return res.status(200).json(parsed);
