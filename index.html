@@ -99,6 +99,7 @@
   .risk-cell .n{ font-family:"Fraunces", serif; font-size:1.6rem; }
   .risk-cell .l{ font-size:0.7rem; color: var(--husk-dim); text-transform:uppercase; letter-spacing:0.06em; font-family:"IBM Plex Mono", monospace; margin-top:4px;}
 
+  .risk-basis{ font-size:0.75rem; color: var(--husk-dim); margin-top:8px; }
   .alert-row{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
   select, input[type=text], input[type=email]{
     background: rgba(0,0,0,0.2); border:1px solid var(--line); border-radius: var(--radius);
@@ -168,6 +169,9 @@
           <div class="risk-cell"><div class="n" id="spreadRate">—</div><div class="l">Km / week est.</div></div>
         </div>
 
+        <div id="riskBasis" class="risk-basis"></div>
+
+        <div id="alertBox">
         <div class="label">Alert the farmer</div>
         <div class="alert-row">
           <select id="channelSelect" aria-label="Alert channel">
@@ -179,6 +183,8 @@
         </div>
         <div id="destHelp"></div>
         <div id="alertStatus"></div>
+        </div>
+        <p id="noAlertNote" class="risk-basis" style="display:none">No damage was found, so no alert is needed.</p>
       </div>
     </div>
   </section>
@@ -208,6 +214,9 @@ const destInput = document.getElementById('destInput');
 const destHelp = document.getElementById('destHelp');
 const alertBtn = document.getElementById('alertBtn');
 const alertStatus = document.getElementById('alertStatus');
+const riskBasis = document.getElementById('riskBasis');
+const alertBox = document.getElementById('alertBox');
+const noAlertNote = document.getElementById('noAlertNote');
 
 let base64Image = null;
 let mediaType = null;
@@ -299,6 +308,7 @@ scanBtn.addEventListener('click', async () => {
   riskScoreEl.textContent = '—';
   riskLevelEl.textContent = '—';
   spreadRateEl.textContent = '—';
+  riskBasis.textContent = '';
   alertStatus.textContent = '';
 
   try {
@@ -316,7 +326,7 @@ scanBtn.addEventListener('click', async () => {
     const history = JSON.parse(sessionStorage.getItem('detections') || '[]');
 
     const spread = await postJSON('/api/predict-spread', { detections: history, newDetection });
-    renderSpread(spread);
+    renderSpread(spread, coords.isDefault);
 
     history.push(newDetection);
     sessionStorage.setItem('detections', JSON.stringify(history));
@@ -336,21 +346,34 @@ function renderDetection(d){
   confidenceText.textContent = 'confidence ' + Math.round((d.confidence || 0) * 100) + '%';
   affectedArea.textContent = d.affectedArea || '—';
   recommendation.textContent = d.recommendation || '—';
+  const noDamage = d.stage === 'none';
+  alertBox.style.display = noDamage ? 'none' : 'block';
+  noAlertNote.style.display = noDamage ? 'block' : 'none';
   resultCard.style.display = 'block';
 }
 
-function renderSpread(s){
+function renderSpread(s, usedDefaultLocation){
   riskScoreEl.textContent = s.riskScore ?? '—';
   riskLevelEl.textContent = s.riskLevel ?? '—';
   spreadRateEl.textContent = s.estimatedSpreadKmPerWeek ?? '—';
+
+  const n = s.nearbyConfirmedCases || 0;
+  let basis = n > 0
+    ? 'Based on this scan plus ' + n + ' earlier case' + (n === 1 ? '' : 's') + ' within ' + s.radiusKm + ' km in this session.'
+    : 'No earlier cases within ' + s.radiusKm + ' km in this session, so this score reflects only this scan.';
+  const m = s.mergedRepeatScans || 0;
+  if (m > 0) basis += ' ' + m + ' repeat scan' + (m === 1 ? '' : 's') + ' of the same spot counted once.';
+  if (usedDefaultLocation) basis += ' Location access was unavailable, so a default location (Musanze) was used.';
+  riskBasis.textContent = basis;
 }
 
 function getApproxLocation(){
+  const fallback = { lat: -1.4995, lng: 29.6335, isDefault: true }; // Musanze
   return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve({ lat: -1.4995, lng: 29.6335 });
+    if (!navigator.geolocation) return resolve(fallback);
     navigator.geolocation.getCurrentPosition(
-      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => resolve({ lat: -1.4995, lng: 29.6335 }),
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, isDefault: false }),
+      () => resolve(fallback),
       { timeout: 4000 }
     );
   });
