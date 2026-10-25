@@ -31,7 +31,6 @@
   }
   a{color:inherit;}
 
-  /* Signature background texture: sparse window-pane leaf-damage marks */
   .field-texture{
     position: fixed; inset: 0; z-index: 0; pointer-events:none; opacity:0.5;
     background-image:
@@ -56,7 +55,6 @@
   section{ margin-bottom: 40px; }
   .eyebrow{ font-family:"IBM Plex Mono", monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color: var(--leaf); margin-bottom: 10px; }
 
-  /* Scout card / dropzone */
   .scout-card{
     border: 1px dashed var(--line);
     border-radius: var(--radius);
@@ -85,7 +83,6 @@
 
   .actions{ margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; }
 
-  /* Result card */
   .result-card{ border:1px solid var(--line); border-radius: var(--radius); padding:24px; background: rgba(28,40,24,0.6); display:none; }
   .result-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px;}
   .badge{ font-family:"IBM Plex Mono", monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; padding:4px 10px; border-radius:20px; border:1px solid var(--line);}
@@ -220,14 +217,33 @@ dropzone.addEventListener('drop', e => {
 function handleFile(){
   const file = fileInput.files[0];
   if (!file) return;
-  mediaType = file.type || 'image/jpeg';
+  mediaType = 'image/jpeg';
+
+  const img = new Image();
   const reader = new FileReader();
   reader.onload = () => {
-    const result = reader.result; // data:image/jpeg;base64,xxxx
-    base64Image = result.split(',')[1];
-    preview.src = result;
-    preview.style.display = 'block';
-    scanBtn.disabled = false;
+    img.onload = () => {
+      const MAX_DIM = 1024;
+      let { width, height } = img;
+      if (width > height && width > MAX_DIM) {
+        height = Math.round(height * (MAX_DIM / width));
+        width = MAX_DIM;
+      } else if (height > MAX_DIM) {
+        width = Math.round(width * (MAX_DIM / height));
+        height = MAX_DIM;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+      const result = canvas.toDataURL('image/jpeg', 0.8);
+      base64Image = result.split(',')[1];
+      preview.src = result;
+      preview.style.display = 'block';
+      scanBtn.disabled = false;
+    };
+    img.src = reader.result;
   };
   reader.readAsDataURL(file);
 }
@@ -259,7 +275,6 @@ scanBtn.addEventListener('click', async () => {
     lastResult = detection;
     renderDetection(detection);
 
-    // Log this detection locally (session-scoped) and get a spread estimate
     const coords = await getApproxLocation();
     const newDetection = {
       lat: coords.lat, lng: coords.lng,
@@ -305,7 +320,7 @@ function renderSpread(s){
 
 function getApproxLocation(){
   return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve({ lat: -1.4995, lng: 29.6335 }); // Musanze fallback
+    if (!navigator.geolocation) return resolve({ lat: -1.4995, lng: 29.6335 });
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       () => resolve({ lat: -1.4995, lng: 29.6335 }),
