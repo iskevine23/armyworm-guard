@@ -289,6 +289,18 @@ scanBtn.addEventListener('click', async () => {
   resultCard.style.display = 'none';
   scanBtn.disabled = true;
 
+  // Clear the previous scan so an old result is never shown (or alerted) next to a new error
+  lastResult = null;
+  stageBadge.textContent = '—';
+  stageBadge.className = 'badge none';
+  confidenceText.textContent = '';
+  affectedArea.textContent = '';
+  recommendation.textContent = '';
+  riskScoreEl.textContent = '—';
+  riskLevelEl.textContent = '—';
+  spreadRateEl.textContent = '—';
+  alertStatus.textContent = '';
+
   try {
     const detection = await postJSON('/api/detect', { image: base64Image, mediaType });
 
