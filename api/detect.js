@@ -2,10 +2,11 @@
 // body: { image: "<base64 string, no data-uri prefix>", mediaType: "image/jpeg" }
 // returns: { pestDetected, confidence, stage, affectedArea, recommendation }
 //
-// Uses Google's Gemini API (free tier available) for image classification.
-// Get a key at https://aistudio.google.com/apikey
+// Uses Google's Gemini API (free tier available). Get a key at https://aistudio.google.com/apikey
+// The model can be changed without editing code: set GEMINI_MODEL in Vercel and redeploy.
 
-const GEMINI_MODEL = "gemini-3.1-flash-lite";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
+const TIMEOUT_MS = 25000; // stay under the 30s maxDuration set in vercel.json
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -38,23 +39,22 @@ Respond ONLY with valid JSON, no markdown fences, no preamble, in exactly this s
 
 If the image is not a crop/leaf photo at all, or too unclear to assess, set pestDetected to false, stage "none", confidence low, and explain why in affectedArea.`;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
     const geminiRes = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         contents: [
           {
             parts: [
               { text: prompt },
-              {
-                inline_data: {
-                  mime_type: mediaType || "image/jpeg",
-                  data: image,
-                },
-              },
+              { inline_data: { mime_type: mediaType || "image/jpeg", data: image } },
             ],
           },
         ],
@@ -68,7 +68,9 @@ If the image is not a crop/leaf photo at all, or too unclear to assess, set pest
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
       console.error("Gemini API error:", errText);
-      return res.status(502).json({ error: "Gemini API request failed", detail: errText });
+      return res
+        .status(502)
+        .json({ error: `Gemini API request failed (${GEMINI_MODEL}): ` + errText.slice(0, 400) });
     }
 
     const data = await geminiRes.json();
@@ -79,12 +81,23 @@ If the image is not a crop/leaf photo at all, or too unclear to assess, set pest
     try {
       parsed = JSON.parse(cleaned);
     } catch (e) {
-      return res.status(502).json({ error: "Gemini API request failed: " + errText.slice(0, 400) });
+      return res.status(502).json({
+        error:
+          "Model did not return valid JSON. Raw response: " +
+          (raw ? raw.slice(0, 200) : JSON.stringify(data).slice(0, 300)),
+      });
     }
 
     return res.status(200).json(parsed);
   } catch (err) {
+    if (err.name === "AbortError") {
+      return res.status(504).json({
+        error: `Gemini took longer than ${TIMEOUT_MS / 1000}s (model: ${GEMINI_MODEL}). Try again, or set GEMINI_MODEL in Vercel to a faster model.`,
+      });
+    }
     console.error("detect.js error:", err);
-    return res.status(500).json({ error: "Detection failed", detail: err.message });
+    return res.status(500).json({ error: "Detection failed: " + err.message });
+  } finally {
+    clearTimeout(timer);
   }
 }
