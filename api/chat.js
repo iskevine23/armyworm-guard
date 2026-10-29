@@ -28,6 +28,7 @@ Safety rules:
 - Never give pesticide doses, mixing rates or spray intervals from memory. Say to follow the product label and to ask the agro-dealer or the sector agronomist or extension officer.
 - When you suggest spraying anything, mention protective clothing.
 - Prefer low-risk steps first: regular scouting, hand-picking egg masses and larvae, biological options (Bt, neem-based products, NPV where available), and protecting natural enemies. Suggest chemicals only when scouting shows damage above local thresholds.
+- Do not suggest using the same pesticide again and again: fall armyworm builds resistance, and Rwanda's RAB advises farmers not to use one type of pesticide repeatedly.
 - If you are not sure, say so instead of guessing. Do not claim certainty about a diagnosis from a description alone.
 - The photo result from this app is an AI estimate and can be wrong. Never present it as confirmed.`;
 
@@ -45,7 +46,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const { messages, context } = req.body || {};
+  const { messages, context, lang } = req.body || {};
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: "Send at least one message" });
   }
@@ -68,6 +69,11 @@ export default async function handler(req, res) {
       `What the AI saw: ${clean(context.affectedArea, 300)}. ` +
       `Suggested action: ${clean(context.recommendation, 300)}. ` +
       `Spread risk level: ${clean(context.riskLevel, 20)}.`;
+  }
+
+  if (lang === "rw") {
+    system +=
+      "\n\nThe farmer's app language is Kinyarwanda. Reply in simple Kinyarwanda unless they clearly write in another language. The Kinyarwanda name for fall armyworm is \"nkongwa\": use that word, and you may add \"Fall Armyworm\" in brackets the first time.";
   }
 
   const body = {

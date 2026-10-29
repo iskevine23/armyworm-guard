@@ -99,6 +99,7 @@
   .risk-cell .n{ font-family:"Fraunces", serif; font-size:1.6rem; }
   .risk-cell .l{ font-size:0.7rem; color: var(--husk-dim); text-transform:uppercase; letter-spacing:0.06em; font-family:"IBM Plex Mono", monospace; margin-top:4px;}
 
+  .header-right{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
   .risk-basis{ font-size:0.75rem; color: var(--husk-dim); margin-top:8px; }
   .alert-row{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
   select, input[type=text], input[type=email]{
@@ -134,33 +135,39 @@
 
   <header>
     <div class="wordmark">Armyworm<span>Guard</span></div>
-    <div class="tagline">Detect · Predict · Alert</div>
+    <div class="header-right">
+      <div class="tagline" data-i18n="tagline">Detect · Predict · Alert</div>
+      <select id="langSelect" aria-label="Language">
+        <option value="en">English</option>
+        <option value="rw">Kinyarwanda</option>
+      </select>
+    </div>
   </header>
 
-  <h1>Photograph a leaf. Know the risk in seconds.</h1>
-  <p class="lede">Upload a photo of a maize leaf or damaged crop. ArmywormGuard checks it for fall armyworm damage, estimates how fast it could spread nearby, and can message the farmer a treatment step on Telegram or email.</p>
+  <h1 data-i18n="h1">Photograph a leaf. Know the risk in seconds.</h1>
+  <p class="lede" data-i18n="lede">Upload a photo of a maize leaf or damaged crop. ArmywormGuard checks it for fall armyworm damage, estimates how fast it could spread nearby, and can message the farmer a treatment step on Telegram or email.</p>
 
   <section>
-    <div class="eyebrow">01 — Scout</div>
+    <div class="eyebrow" data-i18n="eb1">01 — Scout</div>
     <div class="scout-card" id="dropzone">
       <svg class="scout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
         <path d="M4 8.5V6.2a1 1 0 0 1 1-1h2.3L8.7 3.4a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4l1.4 1.8H19a1 1 0 0 1 1 1v11.6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8.5Z"/>
         <circle cx="12" cy="12.5" r="3.6"/>
       </svg>
-      <p><strong>Tap to take or upload a photo</strong></p>
-      <p>Clear shot of the leaf whorl works best</p>
+      <p><strong data-i18n="tapPhoto">Tap to take or upload a photo</strong></p>
+      <p data-i18n="clearShot">Clear shot of the leaf whorl works best</p>
       <input type="file" id="fileInput" accept="image/*" capture="environment" />
       <img id="preview" alt="Selected leaf photo preview" />
     </div>
     <div class="actions">
-      <button id="scanBtn" disabled>Scan for armyworm</button>
-      <button class="secondary" id="clearBtn" type="button">Clear</button>
+      <button id="scanBtn" data-i18n="scan" disabled>Scan for armyworm</button>
+      <button class="secondary" id="clearBtn" type="button" data-i18n="clear">Clear</button>
     </div>
-    <div class="loading" id="loading">Analyzing image…</div>
+    <div class="loading" id="loading" data-i18n="analyzing">Analyzing image…</div>
   </section>
 
   <section>
-    <div class="eyebrow">02 — Result</div>
+    <div class="eyebrow" data-i18n="eb2">02 — Result</div>
     <div class="result-card" id="resultCard">
       <div class="result-header">
         <span class="badge none" id="stageBadge">—</span>
@@ -168,58 +175,58 @@
       </div>
       <div class="result-body">
         <p id="affectedArea"></p>
-        <div class="label">Recommended action</div>
+        <div class="label" data-i18n="recAction">Recommended action</div>
         <p id="recommendation"></p>
 
-        <div class="label">Spread risk (nearby confirmed cases, this session)</div>
+        <div class="label" data-i18n="spreadTitle">Spread risk (nearby confirmed cases, this session)</div>
         <div class="risk-grid">
-          <div class="risk-cell"><div class="n" id="riskScore">—</div><div class="l">Risk score</div></div>
-          <div class="risk-cell"><div class="n" id="riskLevel">—</div><div class="l">Risk level</div></div>
-          <div class="risk-cell"><div class="n" id="spreadRate">—</div><div class="l">Km / week est.</div></div>
+          <div class="risk-cell"><div class="n" id="riskScore">—</div><div class="l" data-i18n="riskScore">Risk score</div></div>
+          <div class="risk-cell"><div class="n" id="riskLevel">—</div><div class="l" data-i18n="riskLevel">Risk level</div></div>
+          <div class="risk-cell"><div class="n" id="spreadRate">—</div><div class="l" data-i18n="spreadRate">Km / week est.</div></div>
         </div>
 
         <div id="riskBasis" class="risk-basis"></div>
 
         <div id="alertBox">
-        <div class="label">Alert the farmer</div>
+        <div class="label" data-i18n="alertFarmer">Alert the farmer</div>
         <div class="alert-row">
           <select id="channelSelect" aria-label="Alert channel">
             <option value="telegram">Telegram</option>
-            <option value="email">Email</option>
+            <option value="email" data-i18n="optEmail">Email</option>
           </select>
           <input type="text" id="destInput" />
-          <button id="alertBtn">Send alert</button>
+          <button id="alertBtn" data-i18n="sendAlert">Send alert</button>
         </div>
         <div id="destHelp"></div>
         <div id="alertStatus"></div>
         </div>
-        <p id="noAlertNote" class="risk-basis" style="display:none">No damage was found, so no alert is needed.</p>
+        <p id="noAlertNote" class="risk-basis" style="display:none" data-i18n="noAlert">No damage was found, so no alert is needed.</p>
       </div>
     </div>
   </section>
 
   <section>
-    <div class="eyebrow">03 — Ask</div>
+    <div class="eyebrow" data-i18n="eb3">03 — Ask</div>
     <div class="chat-box">
       <div id="chatLog" aria-live="polite">
-        <div class="chat-msg chat-bot">Ask me about fall armyworm: how to scout, what the damage stages mean, or what to do next. I answer in English, Kinyarwanda, French or Swahili.</div>
+        <div class="chat-msg chat-bot" data-i18n="chatWelcome">Ask me about fall armyworm: how to scout, what the damage stages mean, or what to do next. I answer in English, Kinyarwanda, French or Swahili.</div>
       </div>
       <div class="chat-chips">
-        <button type="button" class="chip" data-q="How do I scout my maize field for fall armyworm?">How do I scout?</button>
-        <button type="button" class="chip" data-q="When should I spray, and when is it not needed?">When to spray?</button>
-        <button type="button" class="chip" data-q="Are neem-based products safe and do they work?">Is neem safe?</button>
+        <button type="button" class="chip" data-i18n="chip1" data-q-key="chip1Q" data-q="How do I scout my maize field for fall armyworm?">How do I scout?</button>
+        <button type="button" class="chip" data-i18n="chip2" data-q-key="chip2Q" data-q="When should I spray, and when is it not needed?">When to spray?</button>
+        <button type="button" class="chip" data-i18n="chip3" data-q-key="chip3Q" data-q="Are neem-based products safe and do they work?">Is neem safe?</button>
       </div>
       <div class="chat-row">
-        <input type="text" id="chatInput" maxlength="400" placeholder="Type your question…" />
-        <button id="chatSend" type="button">Ask</button>
+        <input type="text" id="chatInput" maxlength="400" placeholder="Type your question…" data-i18n-placeholder="chatPlaceholder" />
+        <button id="chatSend" type="button" data-i18n="ask">Ask</button>
       </div>
-      <div class="risk-basis">AI answers can be wrong. Before spraying, check with your local agronomist or agro-dealer and follow the product label.</div>
+      <div class="risk-basis" data-i18n="chatDisclaimer">AI answers can be wrong. Before spraying, check with your local agronomist or agro-dealer and follow the product label.</div>
     </div>
   </section>
 
-  <p class="note">Spread risk is a rule-based estimate from detections logged in this browser session — not a trained forecasting model. Alerts are only sent once the Telegram bot token or Gmail credentials are configured on the server; otherwise the alert is simulated and shown here instead.</p>
+  <p class="note" data-i18n="note">Spread risk is a rule-based estimate from detections logged in this browser session — not a trained forecasting model. Alerts are only sent once the Telegram bot token or Gmail credentials are configured on the server; otherwise the alert is simulated and shown here instead.</p>
 
-  <footer>ArmywormGuard — built for fall armyworm scouting in maize fields.</footer>
+  <footer data-i18n="footer">ArmywormGuard — built for fall armyworm scouting in maize fields.</footer>
 </div>
 
 <script>
@@ -249,6 +256,128 @@ const noAlertNote = document.getElementById('noAlertNote');
 let base64Image = null;
 let mediaType = null;
 let lastResult = null;
+let lastSpread = null;
+let lastDefaultLoc = false;
+
+// ---- Translations. To fix a Kinyarwanda phrase, edit it in the `rw` object below. ----
+const I18N = {
+  en: {
+    title: "ArmywormGuard — Fall Armyworm Detection",
+    tagline: "Detect · Predict · Alert",
+    h1: "Photograph a leaf. Know the risk in seconds.",
+    lede: "Upload a photo of a maize leaf or damaged crop. ArmywormGuard checks it for fall armyworm damage, estimates how fast it could spread nearby, and can message the farmer a treatment step on Telegram or email.",
+    eb1: "01 — Scout", eb2: "02 — Result", eb3: "03 — Ask",
+    tapPhoto: "Tap to take or upload a photo",
+    clearShot: "Clear shot of the leaf whorl works best",
+    scan: "Scan for armyworm", clear: "Clear", analyzing: "Analyzing image…",
+    recAction: "Recommended action",
+    spreadTitle: "Spread risk (nearby confirmed cases, this session)",
+    riskScore: "Risk score", riskLevel: "Risk level", spreadRate: "Km / week est.",
+    alertFarmer: "Alert the farmer", optEmail: "Email", sendAlert: "Send alert",
+    noAlert: "No damage was found, so no alert is needed.",
+    note: "Spread risk is a rule-based estimate from detections logged in this browser session — not a trained forecasting model. Alerts are only sent once the Telegram bot token or Gmail credentials are configured on the server; otherwise the alert is simulated and shown here instead.",
+    footer: "ArmywormGuard — built for fall armyworm scouting in maize fields.",
+    chatWelcome: "Ask me about fall armyworm: how to scout, what the damage stages mean, or what to do next. I answer in English, Kinyarwanda, French or Swahili.",
+    chip1: "How do I scout?", chip1Q: "How do I scout my maize field for fall armyworm?",
+    chip2: "When to spray?", chip2Q: "When should I spray, and when is it not needed?",
+    chip3: "Is neem safe?", chip3Q: "Are neem-based products safe and do they work?",
+    chatPlaceholder: "Type your question…", ask: "Ask",
+    chatDisclaimer: "AI answers can be wrong. Before spraying, check with your local agronomist or agro-dealer and follow the product label.",
+    stage_none: "none", stage_early: "early", stage_moderate: "moderate", stage_severe: "severe",
+    risk_low: "low", risk_medium: "medium", risk_high: "high", risk_critical: "critical",
+    confidence: "confidence",
+    wrong: "Something went wrong: ",
+    basisSome: "Based on this scan plus {n} earlier case(s) within {r} km in this session.",
+    basisNone: "No earlier cases within {r} km in this session, so this score reflects only this scan.",
+    basisMerged: "{m} repeat scan(s) of the same spot counted once.",
+    basisDefault: "Location access was unavailable, so a default location (Musanze) was used.",
+    tgPlaceholder: "Telegram chat ID (a number)",
+    tgHelp: "The farmer must open the bot and press Start first. To find a chat ID, message @userinfobot on Telegram.",
+    emailPlaceholder: "farmer@example.com",
+    emailHelp: "The alert is sent from the Gmail account configured on the server.",
+    enterChat: "Enter a Telegram chat ID first.", enterEmail: "Enter an email address first.",
+    scanFirst: "Scan a leaf first.", sending: "Sending…",
+    simulated: "Simulated ({note})\n\n",
+    sentTelegram: "Sent via Telegram.", sentEmail: "Sent via email.", failed: "Failed: ",
+    thinking: "Thinking…", chatFail: "Could not get an answer: "
+  },
+  rw: {
+    title: "ArmywormGuard — Gusuzuma nkongwa",
+    tagline: "Kumenya · Guhanura · Kuburira",
+    h1: "Fata ifoto y'ikibabi. Menya ibyago mu masegonda make.",
+    lede: "Shyiraho ifoto y'ikibabi cy'ibigori cyangwa igihingwa cyangiritse. ArmywormGuard isuzuma niba cyariwe na nkongwa (Fall Armyworm), igereranya uko zishobora gukwirakwira hafi aho, kandi ishobora kohereza umuhinzi inama kuri Telegram cyangwa kuri imeri.",
+    eb1: "01 — Genzura", eb2: "02 — Ibyavuye mu isuzuma", eb3: "03 — Baza",
+    tapPhoto: "Kanda ufate ifoto cyangwa ushyiremo ifoto",
+    clearShot: "Ifoto igaragara neza y'ikibabi ni yo nziza",
+    scan: "Suzuma ifoto", clear: "Siba", analyzing: "Turi gusuzuma ifoto…",
+    recAction: "Icyo wakora",
+    spreadTitle: "Ibyago byo gukwirakwira (ahabonetse nkongwa hafi, kuri iyi nshuro)",
+    riskScore: "Amanota y'ibyago", riskLevel: "Urugero rw'ibyago", spreadRate: "Km ku cyumweru (ikigereranyo)",
+    alertFarmer: "Burira umuhinzi", optEmail: "Imeri", sendAlert: "Ohereza",
+    noAlert: "Nta kintu cyangiritse cyabonetse, nta mpamvu yo kohereza ubutumwa bw'iburira.",
+    note: "Ibyago byo gukwirakwira ni ikigereranyo gishingiye ku mategeko yoroheje no ku mafoto yasuzumwe muri iyi nshuro — ntabwo ari icyitegererezo cy'ubuhanuzi cyatojwe. Ubutumwa bwoherezwa ari uko Telegram cyangwa Gmail byashyizweho kuri seriveri; bitabaye ibyo, bugaragara hano gusa nk'ikigereranyo.",
+    footer: "ArmywormGuard — yakorewe gusuzuma nkongwa mu mirima y'ibigori.",
+    chatWelcome: "Mbaza ibibazo kuri nkongwa (Fall Armyworm): uko wazisuzuma mu murima, icyo ibyangiritse bisobanura, cyangwa icyo wakora. Nsubiza mu Kinyarwanda, Icyongereza, Igifaransa cyangwa Igiswahili.",
+    chip1: "Nasuzuma nte?", chip1Q: "Nasuzuma nte umurima wanjye w'ibigori ngo menye niba harimo nkongwa (Fall Armyworm)?",
+    chip2: "Ni ryari ntera umuti?", chip2Q: "Ni ryari nkwiye gutera umuti, kandi se ni ryari bidakenewe?",
+    chip3: "Neem ni nziza?", chip3Q: "Ese imiti ikozwe muri neem irakora, kandi se ntiyangiza?",
+    chatPlaceholder: "Andika ikibazo cyawe…", ask: "Baza",
+    chatDisclaimer: "Ibisubizo bya AI bishobora kuba bifite amakosa. Mbere yo gutera umuti, baza umukozi w'ubuhinzi (agronome) cyangwa ucuruza imiti y'ubuhinzi, kandi ukurikize amabwiriza ari ku gicuruzwa.",
+    stage_none: "Nta cyangiritse", stage_early: "Byangiritse gake", stage_moderate: "Byangiritse mu rugero", stage_severe: "Byangiritse cyane",
+    risk_low: "ruto", risk_medium: "ruciriritse", risk_high: "ruri hejuru", risk_critical: "rukabije",
+    confidence: "icyizere",
+    wrong: "Hari ikitagenze neza: ",
+    basisSome: "Hashingiwe kuri iyi foto n'izindi {n} zabonetse mu birometero {r} hafi aho kuri iyi nshuro.",
+    basisNone: "Nta yindi foto yabonetse mu birometero {r} hafi aho kuri iyi nshuro, bityo amanota agaragaza gusa iyi foto.",
+    basisMerged: "Amafoto {m} yasubiwemo ahantu hamwe yabazwe nk'imwe.",
+    basisDefault: "Aho uri ntiyabashije kumenyekana, bityo hakoreshejwe aho Musanze isanzwe.",
+    tgPlaceholder: "Nimero ya Telegram (chat ID)",
+    tgHelp: "Umuhinzi agomba kubanza gufungura bot agakanda Start. Kugira ngo umenye chat ID, ohereza ubutumwa kuri @userinfobot kuri Telegram.",
+    emailPlaceholder: "umuhinzi@urugero.com",
+    emailHelp: "Ubutumwa bwoherezwa buturutse kuri konti ya Gmail yashyizwe kuri seriveri.",
+    enterChat: "Banza wandike nimero ya Telegram (chat ID).", enterEmail: "Banza wandike aderesi ya imeri.",
+    scanFirst: "Banza usuzume ikibabi.", sending: "Turi kohereza…",
+    simulated: "Ntibyoherejwe kuko Telegram cyangwa imeri bitarashyirwaho kuri seriveri. Ubutumwa bwari kwoherezwa:\n\n",
+    sentTelegram: "Byoherejwe kuri Telegram.", sentEmail: "Byoherejwe kuri imeri.", failed: "Ntibyakunze: ",
+    thinking: "Turatekereza…", chatFail: "Nta gisubizo cyabonetse: "
+  }
+};
+
+let lang = 'en';
+try {
+  const saved = localStorage.getItem('lang');
+  if (saved === 'en' || saved === 'rw') lang = saved;
+  else if ((navigator.language || '').toLowerCase().startsWith('rw')) lang = 'rw';
+} catch {}
+
+function t(key, vars){
+  let s = (I18N[lang] && I18N[lang][key]) ?? I18N.en[key] ?? key;
+  if (vars) for (const k in vars) s = s.split('{' + k + '}').join(vars[k]);
+  return s;
+}
+// translate a value like stage "early" or risk "high"; unknown values are shown as they are
+function tl(prefix, value){
+  const k = prefix + value;
+  return (I18N[lang] && I18N[lang][k]) ?? I18N.en[k] ?? value;
+}
+
+function refreshLabels(){
+  if (lastResult) {
+    stageBadge.textContent = tl('stage_', lastResult.stage);
+    confidenceText.textContent = t('confidence') + ' ' + Math.round((lastResult.confidence || 0) * 100) + '%';
+  }
+  if (lastSpread) renderSpread(lastSpread, lastDefaultLoc);
+}
+
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.title = t('title');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll('[data-q-key]').forEach(el => { el.dataset.q = t(el.dataset.qKey); });
+  applyChannel(true);
+  refreshLabels();
+}
 
 // POST JSON and always give a readable error, even when the server returns an HTML error page
 async function postJSON(url, body){
@@ -337,10 +466,11 @@ scanBtn.addEventListener('click', async () => {
   riskLevelEl.textContent = '—';
   spreadRateEl.textContent = '—';
   riskBasis.textContent = '';
+  lastSpread = null;
   alertStatus.textContent = '';
 
   try {
-    const detection = await postJSON('/api/detect', { image: base64Image, mediaType });
+    const detection = await postJSON('/api/detect', { image: base64Image, mediaType, lang });
 
     lastResult = detection;
     renderDetection(detection);
@@ -360,7 +490,7 @@ scanBtn.addEventListener('click', async () => {
     sessionStorage.setItem('detections', JSON.stringify(history));
 
   } catch (err) {
-    affectedArea.textContent = 'Something went wrong: ' + err.message;
+    affectedArea.textContent = t('wrong') + err.message;
     resultCard.style.display = 'block';
   } finally {
     loading.style.display = 'none';
@@ -369,9 +499,9 @@ scanBtn.addEventListener('click', async () => {
 });
 
 function renderDetection(d){
-  stageBadge.textContent = d.stage;
+  stageBadge.textContent = tl('stage_', d.stage);
   stageBadge.className = 'badge ' + d.stage;
-  confidenceText.textContent = 'confidence ' + Math.round((d.confidence || 0) * 100) + '%';
+  confidenceText.textContent = t('confidence') + ' ' + Math.round((d.confidence || 0) * 100) + '%';
   affectedArea.textContent = d.affectedArea || '—';
   recommendation.textContent = d.recommendation || '—';
   const noDamage = d.stage === 'none';
@@ -381,17 +511,17 @@ function renderDetection(d){
 }
 
 function renderSpread(s, usedDefaultLocation){
+  lastSpread = s;
+  lastDefaultLoc = !!usedDefaultLocation;
   riskScoreEl.textContent = s.riskScore ?? '—';
-  riskLevelEl.textContent = s.riskLevel ?? '—';
+  riskLevelEl.textContent = s.riskLevel ? tl('risk_', s.riskLevel) : '—';
   spreadRateEl.textContent = s.estimatedSpreadKmPerWeek ?? '—';
 
   const n = s.nearbyConfirmedCases || 0;
-  let basis = n > 0
-    ? 'Based on this scan plus ' + n + ' earlier case' + (n === 1 ? '' : 's') + ' within ' + s.radiusKm + ' km in this session.'
-    : 'No earlier cases within ' + s.radiusKm + ' km in this session, so this score reflects only this scan.';
+  let basis = n > 0 ? t('basisSome', { n, r: s.radiusKm }) : t('basisNone', { r: s.radiusKm });
   const m = s.mergedRepeatScans || 0;
-  if (m > 0) basis += ' ' + m + ' repeat scan' + (m === 1 ? '' : 's') + ' of the same spot counted once.';
-  if (usedDefaultLocation) basis += ' Location access was unavailable, so a default location (Musanze) was used.';
+  if (m > 0) basis += ' ' + t('basisMerged', { m });
+  if (usedDefaultLocation) basis += ' ' + t('basisDefault');
   riskBasis.textContent = basis;
 }
 
@@ -415,48 +545,49 @@ function saveDest(channel, value){
   try { localStorage.setItem('alertTo_' + channel, value); localStorage.setItem('alertChannel', channel); } catch {}
 }
 
-function applyChannel(){
+function applyChannel(keepValue){
   const channel = channelSelect.value;
   if (channel === 'telegram') {
     destInput.type = 'text';
-    destInput.placeholder = 'Telegram chat ID (a number)';
-    destHelp.textContent = 'The farmer must open the bot and press Start first. To find a chat ID, message @userinfobot on Telegram.';
+    destInput.placeholder = t('tgPlaceholder');
+    destHelp.textContent = t('tgHelp');
   } else {
     destInput.type = 'email';
-    destInput.placeholder = 'farmer@example.com';
-    destHelp.textContent = 'The alert is sent from the Gmail account configured on the server.';
+    destInput.placeholder = t('emailPlaceholder');
+    destHelp.textContent = t('emailHelp');
   }
-  destInput.value = loadSaved(channel);
+  if (!keepValue) destInput.value = loadSaved(channel);
 }
 
 try {
   const savedChannel = localStorage.getItem('alertChannel');
   if (savedChannel === 'telegram' || savedChannel === 'email') channelSelect.value = savedChannel;
 } catch {}
-channelSelect.addEventListener('change', applyChannel);
+channelSelect.addEventListener('change', () => applyChannel());
 applyChannel();
 
 alertBtn.addEventListener('click', async () => {
   const channel = channelSelect.value;
   const to = destInput.value.trim();
-  if (!to) { alertStatus.textContent = channel === 'telegram' ? 'Enter a Telegram chat ID first.' : 'Enter an email address first.'; return; }
-  if (!lastResult) { alertStatus.textContent = 'Scan a leaf first.'; return; }
+  if (!to) { alertStatus.textContent = channel === 'telegram' ? t('enterChat') : t('enterEmail'); return; }
+  if (!lastResult) { alertStatus.textContent = t('scanFirst'); return; }
 
-  alertStatus.textContent = 'Sending…';
+  alertStatus.textContent = t('sending');
   try {
     const data = await postJSON('/api/alert', {
       channel,
       to,
       stage: lastResult.stage,
-      riskLevel: riskLevelEl.textContent,
+      lang,
+      riskLevel: lastSpread ? lastSpread.riskLevel : undefined,
       recommendation: lastResult.recommendation
     });
     saveDest(channel, to);
     alertStatus.textContent = data.simulated
-      ? 'Simulated (' + data.note + ')\n\n' + data.message
-      : 'Sent via ' + (channel === 'telegram' ? 'Telegram' : 'email') + '.';
+      ? t('simulated', { note: data.note }) + data.message
+      : t(channel === 'telegram' ? 'sentTelegram' : 'sentEmail');
   } catch (err) {
-    alertStatus.textContent = 'Failed: ' + err.message;
+    alertStatus.textContent = t('failed') + err.message;
   }
 });
 
@@ -482,20 +613,20 @@ async function sendChat(text){
   addChatMsg('user', text);
   chatHistory.push({ role: 'user', text });
   chatSend.disabled = true;
-  const pending = addChatMsg('model', 'Thinking…');
+  const pending = addChatMsg('model', t('thinking'));
   try {
     const context = lastResult ? {
       stage: lastResult.stage,
       affectedArea: lastResult.affectedArea,
       recommendation: lastResult.recommendation,
-      riskLevel: riskLevelEl.textContent
+      riskLevel: lastSpread ? lastSpread.riskLevel : ''
     } : null;
     // history alternates user/model and ends on a user turn, so the last 7 start on a user turn
-    const data = await postJSON('/api/chat', { messages: chatHistory.slice(-7), context });
+    const data = await postJSON('/api/chat', { messages: chatHistory.slice(-7), context, lang });
     pending.textContent = data.reply;
     chatHistory.push({ role: 'model', text: data.reply });
   } catch (err) {
-    pending.textContent = 'Could not get an answer: ' + err.message;
+    pending.textContent = t('chatFail') + err.message;
     chatHistory.pop(); // drop the unanswered question so the history keeps alternating
   } finally {
     chatSend.disabled = false;
@@ -506,6 +637,16 @@ async function sendChat(text){
 chatSend.addEventListener('click', () => sendChat(chatInput.value));
 chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendChat(chatInput.value); } });
 document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => sendChat(b.dataset.q)));
+
+// ---- Language switcher ----
+const langSelect = document.getElementById('langSelect');
+langSelect.value = lang;
+langSelect.addEventListener('change', () => {
+  lang = langSelect.value;
+  try { localStorage.setItem('lang', lang); } catch {}
+  applyLang();
+});
+applyLang();
 </script>
 </body>
 </html>

@@ -31,12 +31,19 @@ Respond ONLY with valid JSON, no markdown fences, no preamble, in exactly this s
 
 If the image is not a crop/leaf photo at all, or too unclear to assess, set pestDetected to false, stage "none", confidence low, and explain why in affectedArea.`;
 
+function languageNote(lang) {
+  if (lang !== "rw") return "";
+  return `
+
+Language: write the values of "affectedArea" and "recommendation" in simple, clear Kinyarwanda that a smallholder farmer in Rwanda would understand. Keep the JSON keys, the "stage" value and every other field exactly as specified above, in English. The Kinyarwanda name of the pest is "nkongwa" (fall armyworm): use that word for the pest.`;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Use POST" });
   }
 
-  const { image, mediaType } = req.body || {};
+  const { image, mediaType, lang } = req.body || {};
   if (!image) {
     return res.status(400).json({ error: "Missing 'image' (base64) in request body" });
   }
@@ -66,7 +73,7 @@ export default async function handler(req, res) {
           contents: [
             {
               parts: [
-                { text: PROMPT },
+                { text: PROMPT + languageNote(lang) },
                 { inline_data: { mime_type: mediaType || "image/jpeg", data: image } },
               ],
             },

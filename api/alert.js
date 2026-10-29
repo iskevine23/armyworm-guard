@@ -12,11 +12,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Use POST" });
   }
 
-  const { channel, to, stage, riskLevel, recommendation } = req.body || {};
-  const text = buildMessage({ stage, riskLevel, recommendation });
+  const { channel, to, stage, riskLevel, recommendation, lang } = req.body || {};
+  const text = buildMessage({ stage, riskLevel, recommendation, lang });
 
   if (channel === "telegram") return sendTelegram(res, to, text);
-  if (channel === "email") return sendEmail(res, to, text, stage);
+  if (channel === "email") return sendEmail(res, to, text, stage, lang);
 
   return res.status(400).json({ error: "channel must be 'telegram' or 'email'" });
 }
@@ -56,7 +56,7 @@ async function sendTelegram(res, to, text) {
   }
 }
 
-async function sendEmail(res, to, text, stage) {
+async function sendEmail(res, to, text, stage, lang) {
   const { GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
   const address = (to || "").trim();
 
@@ -81,7 +81,7 @@ async function sendEmail(res, to, text, stage) {
     await transporter.sendMail({
       from: `ArmywormGuard <${GMAIL_USER}>`,
       to: address,
-      subject: `ArmywormGuard alert: ${(stage || "unknown").toUpperCase()} fall armyworm damage`,
+      subject: subjectFor(stage, lang),
       text,
     });
     return res.status(200).json({ sent: true, simulated: false, channel: "email" });
@@ -91,7 +91,28 @@ async function sendEmail(res, to, text, stage) {
   }
 }
 
-function buildMessage({ stage, riskLevel, recommendation }) {
+const RW = {
+  stage: { none: "nta cyangiritse", early: "byangiritse gake", moderate: "byangiritse mu rugero", severe: "byangiritse cyane" },
+  risk: { low: "ruto", medium: "ruciriritse", high: "ruri hejuru", critical: "rukabije" },
+  fallback: "Genzura umurima wawe, ubaze umukozi w'ubuhinzi (agronome) wo mu murenge wawe.",
+};
+
+function subjectFor(stage, lang) {
+  if (lang === "rw") {
+    return `ArmywormGuard: ubutumwa bw'iburira (${RW.stage[stage] || "bitazwi"})`;
+  }
+  return `ArmywormGuard alert: ${(stage || "unknown").toUpperCase()} fall armyworm damage`;
+}
+
+function buildMessage({ stage, riskLevel, recommendation, lang }) {
+  if (lang === "rw") {
+    return (
+      `ArmywormGuard — ubutumwa bw'iburira\n` +
+      `Ibyangijwe na nkongwa (Fall Armyworm): ${RW.stage[stage] || "bitazwi"}\n` +
+      `Ibyago byo gukwirakwira hafi aho: ${RW.risk[riskLevel] || "bitazwi"}\n` +
+      `Icyo wakora: ${recommendation || RW.fallback}`
+    );
+  }
   const stageLabel = stage ? stage.toUpperCase() : "UNKNOWN";
   const riskLabel = riskLevel ? riskLevel.toUpperCase() : "UNKNOWN";
   return (
