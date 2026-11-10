@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#1C2818" />
+<meta name="robots" content="noindex" />
+<title>Administration — ArmywormGuard</title>
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="field-texture"></div>
+<div class="wrap wide">
+  <header>
+    <a class="wordmark" href="index.html">Armyworm<span>Guard</span> <small class="tag-role">Admin</small></a>
+    <div class="header-right"><div id="accountBar" class="account-bar"></div></div>
+  </header>
+
+  <nav class="tabs" aria-label="Administration">
+    <button type="button" data-view="overview">Overview</button>
+    <button type="button" data-view="users">Users</button>
+    <button type="button" data-view="scans">Scans</button>
+    <button type="button" data-view="requests">Requests</button>
+    <button type="button" data-view="outbreaks">Outbreaks</button>
+    <button type="button" data-view="settings">Settings</button>
+    <button type="button" data-view="emails">Emails</button>
+    <button type="button" data-view="activity">Activity</button>
+    <button type="button" data-view="reports">Reports</button>
+  </nav>
+
+  <div id="view-overview" class="view">
+    <h1>System overview</h1>
+    <div id="health" class="health"></div>
+    <div class="stats" id="adminStats"></div>
+    <h2 class="sub">Scans per day (last 30 days)</h2>
+    <div id="chart" class="chart"></div>
+    <h2 class="sub">Districts (last 30 days)</h2>
+    <div id="districtTable"></div>
+  </div>
+
+  <div id="view-users" class="view">
+    <h1>Users and permissions</h1>
+    <div class="filters">
+      <input type="search" id="uQ" placeholder="Search name, email, phone, district" aria-label="Search users" />
+      <select id="uRole" aria-label="Role"><option value="">All roles</option><option value="farmer">Farmers</option><option value="advisor">Advisors</option><option value="admin">Administrators</option></select>
+      <select id="uStatus" aria-label="Status"><option value="">Any status</option><option value="active">Active</option><option value="suspended">Suspended</option></select>
+      <button type="button" class="secondary" id="uGo">Search</button>
+      <button type="button" id="uAdd">Add user</button>
+    </div>
+    <p class="muted" id="uCount"></p>
+    <div id="uList" class="table-wrap"></div>
+  </div>
+
+  <div id="view-scans" class="view"><h1>All scans</h1><div id="scansBox"></div></div>
+  <div id="view-requests" class="view"><div id="casesBox"></div></div>
+  <div id="view-outbreaks" class="view"><div id="outbreaksHead"><h1>Outbreak alerts</h1></div><div id="outbreaksBox"></div></div>
+
+  <div id="view-settings" class="view">
+    <h1>Settings</h1>
+    <form id="setForm" novalidate>
+      <h2 class="sub">Automatic outbreak detection</h2>
+      <p class="muted">An alert is raised when at least <em>N</em> different farmers report qualifying damage within the radius and time window. Repeat scans by one farmer count once. Only scans with a real location (GPS or saved farm) count.</p>
+      <div class="grid3">
+        <div class="field"><label for="sMin">Different farmers needed</label><input type="number" id="sMin" min="2" max="100" step="1" /></div>
+        <div class="field"><label for="sRad">Radius (km)</label><input type="number" id="sRad" min="0.5" max="100" step="0.5" /></div>
+        <div class="field"><label for="sWin">Time window (days)</label><input type="number" id="sWin" min="1" max="60" step="1" /></div>
+        <div class="field"><label for="sConf">Minimum AI confidence (0–1)</label><input type="number" id="sConf" min="0" max="1" step="0.05" /></div>
+      </div>
+      <div class="field"><span class="label-like">Damage stages that count</span>
+        <div class="checks">
+          <label class="check"><input type="checkbox" name="stage" value="early" /> early</label>
+          <label class="check"><input type="checkbox" name="stage" value="moderate" /> moderate</label>
+          <label class="check"><input type="checkbox" name="stage" value="severe" /> severe</label>
+        </div></div>
+      <label class="check"><input type="checkbox" id="sNotifyFarmers" /> Email farmers in the area when an advisor confirms an outbreak</label>
+
+      <h2 class="sub">Usage limits</h2>
+      <div class="grid3">
+        <div class="field"><label for="sPub">Free scans per visitor (IP) per day</label><input type="number" id="sPub" min="0" max="1000" /></div>
+        <div class="field"><label for="sFarm">Scans per farmer per day</label><input type="number" id="sFarm" min="1" max="1000" /></div>
+        <div class="field"><label for="sChat">Assistant questions per user per day</label><input type="number" id="sChat" min="0" max="2000" /></div>
+      </div>
+      <h2 class="sub">Accounts and requests</h2>
+      <label class="check"><input type="checkbox" id="sReg" /> Farmers can create their own accounts</label>
+      <label class="check"><input type="checkbox" id="sAssign" /> Assign new help requests automatically to the advisor covering the district with the fewest open cases</label>
+      <div class="actions"><button type="submit" id="sSave">Save settings</button></div>
+    </form>
+  </div>
+
+  <div id="view-emails" class="view">
+    <h1>Email log</h1>
+    <p class="muted">Every email the system sends is recorded here with its delivery result.</p>
+    <div class="filters">
+      <select id="eStatus" aria-label="Status"><option value="">All</option><option value="sent">Sent</option><option value="failed">Failed</option><option value="pending">Pending</option><option value="skipped">Skipped (user turned emails off)</option></select>
+      <button type="button" class="secondary" id="eGo">Show</button>
+      <button type="button" class="secondary" id="eRetryAll">Retry failed (last 3 days)</button>
+      <input type="email" id="eTestTo" placeholder="test address" aria-label="Test email address" />
+      <button type="button" id="eTest">Send test email</button>
+    </div>
+    <div id="eList" class="table-wrap"></div>
+  </div>
+
+  <div id="view-activity" class="view">
+    <h1>Activity log</h1>
+    <div id="aList" class="table-wrap"></div>
+    <div class="actions"><button type="button" class="secondary" id="aMore">Load more</button></div>
+  </div>
+
+  <div id="view-reports" class="view">
+    <h1>Reports</h1>
+    <p class="muted">Download CSV files (open in Excel or Google Sheets). Leave the dates empty for everything.</p>
+    <div class="filters">
+      <label>From <input type="date" id="rFrom" /></label>
+      <label>To <input type="date" id="rTo" /></label>
+    </div>
+    <div class="report-grid" id="reportGrid"></div>
+  </div>
+  <datalist id="districts"></datalist>
+</div>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script defer src="js/i18n.js"></script>
+<script defer src="js/ui.js"></script>
+<script defer src="js/districts.js"></script>
+<script defer src="js/threads.js"></script>
+<script defer src="js/staff.js"></script>
+<script defer src="js/admin.js"></script>
+</body>
+</html>

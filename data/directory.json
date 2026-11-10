@@ -1,0 +1,54 @@
+{
+  "updated": "2026-11-03",
+  "note": "The three entries below are SAMPLES so the page has something to show. They have no phone numbers and are marked SAMPLE in the app. Delete them and add real advisors and agro-dealers (use add-place.html to create each entry).",
+  "entries": [
+    {
+      "id": "sample-advisor-1",
+      "sample": true,
+      "type": "advisor",
+      "name": "Sample sector agronomist (replace me)",
+      "organization": "Replace with the real office, for example your sector or district agriculture office",
+      "phone": "",
+      "whatsapp": "",
+      "district": "Musanze",
+      "sector": "",
+      "address": "",
+      "lat": -1.5020,
+      "lng": 29.6380,
+      "hours": "Mon-Fri 08:00-17:00",
+      "services": ["Pest scouting advice", "Farmer training"]
+    },
+    {
+      "id": "sample-dealer-1",
+      "sample": true,
+      "type": "agro-dealer",
+      "name": "Sample agro-dealer (replace me)",
+      "organization": "",
+      "phone": "",
+      "whatsapp": "",
+      "district": "Musanze",
+      "sector": "",
+      "address": "",
+      "lat": -1.4960,
+      "lng": 29.6290,
+      "hours": "Mon-Sat 08:00-18:00",
+      "services": ["Crop protection products", "Sprayers", "Protective clothing"]
+    },
+    {
+      "id": "sample-dealer-2",
+      "sample": true,
+      "type": "agro-dealer",
+      "name": "Second sample agro-dealer (replace me)",
+      "organization": "",
+      "phone": "",
+      "whatsapp": "",
+      "district": "Musanze",
+      "sector": "",
+      "address": "",
+      "lat": -1.5100,
+      "lng": 29.6500,
+      "hours": "",
+      "services": ["Seeds", "Fertiliser"]
+    }
+  ]
+}

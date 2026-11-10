@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#1C2818" />
+<meta name="robots" content="noindex" />
+<title>My farm dashboard — ArmywormGuard</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="field-texture"></div>
+<div class="wrap">
+  <header>
+    <a class="wordmark" href="index.html">Armyworm<span>Guard</span></a>
+    <div class="header-right">
+      <select id="langSelect" aria-label="Language">
+        <option value="en">English</option>
+        <option value="rw">Kinyarwanda</option>
+      </select>
+      <div id="accountBar" class="account-bar"></div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Farmer dashboard">
+    <button type="button" data-view="overview" data-i18n="nav_overview">Overview</button>
+    <button type="button" data-view="scan" data-i18n="nav_scan">Scan</button>
+    <button type="button" data-view="history" data-i18n="nav_history">History</button>
+    <button type="button" data-view="requests" data-i18n="nav_requests">My requests</button>
+    <button type="button" data-view="nearby" data-i18n="nav_nearby">Nearby help</button>
+    <button type="button" data-view="assistant" data-i18n="nav_assistant">Assistant</button>
+    <button type="button" data-view="farm" data-i18n="nav_farm">My farm</button>
+  </nav>
+
+  <!-- OVERVIEW -->
+  <div id="view-overview" class="view">
+    <h1 id="hello">Hello</h1>
+    <div id="farmMissing" class="callout warn" style="display:none">
+      <span data-i18n="farmMissing">Save your farm location so your reports reach the right advisor and you are warned about outbreaks near you.</span>
+      <a class="btn small" href="#farm" data-i18n="setFarm">Set my farm location</a>
+    </div>
+    <div id="warnings"></div>
+    <div class="stats" id="farmerStats"></div>
+    <div class="actions">
+      <a class="btn" href="#scan" data-i18n="scan">Scan for armyworm</a>
+      <button type="button" class="secondary" id="ovNewReq" data-i18n="requestHelp">Request advisor help</button>
+    </div>
+    <h2 class="sub" data-i18n="latestScans">Latest scans</h2>
+    <div id="ovScans"></div>
+    <h2 class="sub" data-i18n="latestRequests">Latest requests</h2>
+    <div id="ovRequests"></div>
+  </div>
+
+  <!-- SCAN -->
+  <div id="view-scan" class="view">
+    <h1 data-i18n="h1">Photograph a leaf. Know the risk in seconds.</h1>
+    <section>
+      <div class="scout-card" id="dropzone" tabindex="0" role="button" aria-label="Take or upload a photo">
+        <svg class="scout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+          <path d="M4 8.5V6.2a1 1 0 0 1 1-1h2.3L8.7 3.4a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4l1.4 1.8H19a1 1 0 0 1 1 1v11.6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8.5Z"/>
+          <circle cx="12" cy="12.5" r="3.6"/>
+        </svg>
+        <p><strong data-i18n="tapPhoto">Tap to take or upload a photo</strong></p>
+        <p data-i18n="clearShot">Clear shot of the leaf whorl works best</p>
+        <input type="file" id="fileInput" accept="image/*" capture="environment" />
+        <img id="preview" alt="Selected leaf photo preview" />
+      </div>
+      <div class="actions">
+        <button id="scanBtn" data-i18n="scan" disabled>Scan for armyworm</button>
+        <button class="secondary" id="clearBtn" type="button" data-i18n="clear">Clear</button>
+      </div>
+      <div class="loading" id="loading" data-i18n="analyzing">Analyzing image…</div>
+    </section>
+    <section>
+      <div class="result-card" id="resultCard" aria-live="polite">
+        <div class="result-header">
+          <span class="badge none" id="stageBadge">—</span>
+          <span class="confidence" id="confidenceText"></span>
+        </div>
+        <div class="result-body">
+          <p class="verdict" id="verdict"></p>
+          <div id="errorText" class="warn"></div>
+          <div id="fullBox" style="display:none">
+            <p id="affectedArea"></p>
+            <div class="label" data-i18n="recAction">Recommended action</div>
+            <p id="recommendation"></p>
+            <div class="label" data-i18n="spreadTitleDb">Spread risk (reports from all farmers nearby)</div>
+            <div class="risk-grid">
+              <div class="risk-cell"><div class="n" id="riskScore">—</div><div class="l" data-i18n="riskScore">Risk score</div></div>
+              <div class="risk-cell"><div class="n" id="riskLevel">—</div><div class="l" data-i18n="riskLevel">Risk level</div></div>
+              <div class="risk-cell"><div class="n" id="spreadRate">—</div><div class="l" data-i18n="spreadRate">Km / week est.</div></div>
+            </div>
+            <div id="riskBasis" class="risk-basis"></div>
+            <div id="outbreakNote" class="callout" style="display:none"></div>
+            <p class="risk-basis" data-i18n="savedToHistory">Saved to your history.</p>
+            <div class="actions">
+              <button type="button" id="scanHelpBtn" data-i18n="requestHelp">Request advisor help</button>
+              <button type="button" class="secondary" id="emailMeBtn" data-i18n="emailMe">Email me this result</button>
+              <button type="button" class="secondary" id="askAiBtn" data-i18n="askAssistant">Ask the assistant</button>
+            </div>
+            <details class="mini">
+              <summary data-i18n="tgSummary">Send to Telegram</summary>
+              <div class="alert-row">
+                <input type="text" id="tgInput" inputmode="numeric" placeholder="Telegram chat ID (a number)" data-i18n-placeholder="tgPlaceholder" />
+                <button type="button" class="secondary" id="tgBtn" data-i18n="sendAlert">Send alert</button>
+              </div>
+              <div class="risk-basis" data-i18n="tgHelp">The farmer must open the bot and press Start first. To find a chat ID, message @userinfobot on Telegram.</div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="view-history" class="view">
+    <h1 data-i18n="historyTitle">Scan history</h1>
+    <p class="lede" data-i18n="historyIntroDb">Every scan you make while logged in is saved to your account, on any phone.</p>
+    <div class="actions"><a class="btn secondary" href="/api/scans?action=export" data-i18n="h_csv">Download CSV</a></div>
+    <div id="historyList" class="list"></div>
+    <div class="actions"><button type="button" class="secondary" id="historyMore" style="display:none" data-i18n="loadMore">Load more</button></div>
+  </div>
+
+  <!-- REQUESTS -->
+  <div id="view-requests" class="view">
+    <div id="reqListPane">
+      <h1 data-i18n="nav_requests">My requests</h1>
+      <p class="lede" data-i18n="reqIntro">Ask an agricultural advisor for help. You get an email when they answer.</p>
+      <div class="actions"><button type="button" id="newReqBtn" data-i18n="newRequest">New request</button></div>
+      <div id="reqList" class="list"></div>
+    </div>
+    <div id="reqDetailPane" style="display:none"></div>
+  </div>
+
+  <!-- NEARBY -->
+  <div id="view-nearby" class="view">
+    <h1 data-i18n="nearbyTitle">Advisors and agro-dealers near you</h1>
+    <p class="lede" data-i18n="nearbyIntro">A farm advisor can confirm what you see in the field. Agro-dealers sell the inputs: ask for a registered product and follow its label.</p>
+    <div class="risk-basis"><span id="nearbyLoc"></span> <button type="button" id="locUpdate" class="btn secondary small" data-i18n="locUpdate">Update my location</button></div>
+    <div id="locWarn" class="risk-basis warn" style="display:none" data-i18n="locDenied">Could not get your location, so the list is sorted from Musanze. Allow location access in your browser, or save your farm location in the My farm tab.</div>
+    <div id="reportLine" class="risk-basis"></div>
+    <div class="pills">
+      <button type="button" class="pill active" data-filter="all" data-i18n="filter_all">All</button>
+      <button type="button" class="pill" data-filter="advisor" data-i18n="filter_advisor">Advisors</button>
+      <button type="button" class="pill" data-filter="agro-dealer" data-i18n="filter_dealer">Agro-dealers</button>
+    </div>
+    <div id="nearbyMap"></div>
+    <div id="nearbyList"></div>
+  </div>
+
+  <!-- ASSISTANT -->
+  <div id="view-assistant" class="view">
+    <h1 data-i18n="nav_assistant">Assistant</h1>
+    <div class="chat-box">
+      <div id="chatLog" aria-live="polite">
+        <div class="chat-msg chat-bot" data-i18n="chatWelcome">Ask me about fall armyworm: how to scout, what the damage stages mean, or what to do next. I answer in English, Kinyarwanda, French or Swahili.</div>
+      </div>
+      <div class="chat-chips">
+        <button type="button" class="chip" data-i18n="chip1" data-q-key="chip1Q" data-q="How do I scout my maize field for fall armyworm?">How do I scout?</button>
+        <button type="button" class="chip" data-i18n="chip2" data-q-key="chip2Q" data-q="When should I spray, and when is it not needed?">When to spray?</button>
+        <button type="button" class="chip" data-i18n="chip3" data-q-key="chip3Q" data-q="Are neem-based products safe and do they work?">Is neem safe?</button>
+      </div>
+      <div class="chat-row">
+        <input type="text" id="chatInput" maxlength="400" placeholder="Type your question…" data-i18n-placeholder="chatPlaceholder" />
+        <button id="chatSend" type="button" data-i18n="ask">Ask</button>
+      </div>
+      <div class="risk-basis" data-i18n="chatDisclaimer">AI answers can be wrong. Before spraying, check with your local agronomist or agro-dealer and follow the product label.</div>
+    </div>
+  </div>
+
+  <!-- FARM / PROFILE -->
+  <div id="view-farm" class="view">
+    <h1 data-i18n="farmTitle">My farm</h1>
+    <p class="lede" data-i18n="farmIntroDb">Your farm location sends your reports to the right advisor and helps warn farmers nearby. Only you, the advisors for your area and administrators can see it.</p>
+    <form id="farmForm" novalidate>
+      <div class="field"><label for="farmerName" data-i18n="f_farmerName">Your name</label><input type="text" id="farmerName" maxlength="120" /></div>
+      <div class="grid2">
+        <div class="field"><label for="farmPhone" data-i18n="f_phone">Phone</label><input type="tel" id="farmPhone" maxlength="30" /></div>
+        <div class="field"><label for="farmName" data-i18n="f_farmName">Farm name</label><input type="text" id="farmName" maxlength="80" /></div>
+        <div class="field"><label for="farmDistrict" data-i18n="f_district">District</label><input type="text" id="farmDistrict" list="districts" maxlength="60" /></div>
+        <div class="field"><label for="farmSector" data-i18n="f_sector">Sector</label><input type="text" id="farmSector" maxlength="60" /></div>
+        <div class="field"><label for="farmVillage" data-i18n="f_village">Village</label><input type="text" id="farmVillage" maxlength="80" /></div>
+        <div class="field"><label for="farmSize" data-i18n="f_size">Farm size (hectares)</label><input type="number" id="farmSize" min="0" step="0.01" /></div>
+        <div class="field"><label for="farmLat" data-i18n="f_lat">Latitude</label><input type="text" id="farmLat" inputmode="decimal" /></div>
+        <div class="field"><label for="farmLng" data-i18n="f_lng">Longitude</label><input type="text" id="farmLng" inputmode="decimal" /></div>
+      </div>
+      <label class="check"><input type="checkbox" id="farmEmails" /> <span data-i18n="f_emails">Email me when an advisor answers, and about outbreaks near my farm</span></label>
+      <div class="actions">
+        <button type="button" id="farmUseLoc" class="secondary" data-i18n="f_useLoc">Use my current location</button>
+        <button type="submit" id="farmSave" data-i18n="f_save">Save</button>
+      </div>
+      <div id="farmStatus" class="risk-basis"></div>
+    </form>
+    <h2 class="sub" data-i18n="changePassword">Change password</h2>
+    <form id="pwForm" novalidate>
+      <div class="grid2">
+        <div class="field"><label for="pwCur" data-i18n="currentPassword">Current password</label><input type="password" id="pwCur" autocomplete="current-password" /></div>
+        <div class="field"><label for="pwNew" data-i18n="passwordNew">New password</label><input type="password" id="pwNew" autocomplete="new-password" /></div>
+      </div>
+      <div class="actions"><button type="submit" class="secondary" id="pwBtn" data-i18n="changePassword">Change password</button></div>
+    </form>
+  </div>
+
+  <datalist id="districts"></datalist>
+  <footer data-i18n="footer">ArmywormGuard — built for fall armyworm scouting in maize fields.</footer>
+</div>
+
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script defer src="js/i18n.js"></script>
+<script defer src="js/ui.js"></script>
+<script defer src="js/store.js"></script>
+<script defer src="js/districts.js"></script>
+<script defer src="js/scanner.js"></script>
+<script defer src="js/result.js"></script>
+<script defer src="js/nearby.js"></script>
+<script defer src="js/threads.js"></script>
+<script defer src="js/farmer.js"></script>
+</body>
+</html>

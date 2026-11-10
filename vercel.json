@@ -1,7 +1,47 @@
 {
   "functions": {
     "api/*.js": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "db/schema.sql"
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(self), camera=(self), microphone=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/(lib|db|scripts|tests|node_modules)/:path*",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/(package.json|package-lock.json|.env.example)",
+      "destination": "/",
+      "permanent": false
+    }
+  ]
 }

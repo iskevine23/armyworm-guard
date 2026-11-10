@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#1C2818" />
+<meta name="robots" content="noindex" />
+<title>Log in — ArmywormGuard</title>
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="field-texture"></div>
+<div class="wrap narrow">
+  <header>
+    <a class="wordmark" href="index.html">Armyworm<span>Guard</span></a>
+    <div class="header-right">
+      <select id="langSelect" aria-label="Language">
+        <option value="en">English</option>
+        <option value="rw">Kinyarwanda</option>
+      </select>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Account">
+    <button type="button" data-pane="login" class="active" data-i18n="btnLogin">Log in</button>
+    <button type="button" data-pane="register" data-i18n="btnRegisterShort">Sign up</button>
+  </nav>
+
+  <div id="pendingNote" class="callout" style="display:none" data-i18n="pendingNote">Log in or create an account and your last scan will be saved with its full result.</div>
+
+  <form id="pane-login" class="pane card-form" novalidate>
+    <h1 data-i18n="loginTitle">Welcome back</h1>
+    <div class="field"><label for="lEmail" data-i18n="email">Email</label><input type="email" id="lEmail" autocomplete="email" required /></div>
+    <div class="field"><label for="lPass" data-i18n="password">Password</label><input type="password" id="lPass" autocomplete="current-password" required /></div>
+    <div class="actions"><button type="submit" id="lBtn" data-i18n="btnLogin">Log in</button>
+      <button type="button" class="linkish" id="forgotLink" data-i18n="forgot">Forgot password?</button></div>
+    <div class="form-msg" id="lMsg" role="alert"></div>
+  </form>
+
+  <form id="pane-register" class="pane card-form" style="display:none" novalidate>
+    <h1 data-i18n="registerTitle">Create a free farmer account</h1>
+    <p class="lede" data-i18n="registerLede">Advisors and administrators get their accounts from the administrator.</p>
+    <div class="field"><label for="rName" data-i18n="fullName">Full name *</label><input type="text" id="rName" autocomplete="name" maxlength="120" required /></div>
+    <div class="field"><label for="rEmail" data-i18n="email">Email *</label><input type="email" id="rEmail" autocomplete="email" required /></div>
+    <div class="field"><label for="rPhone" data-i18n="f_phone">Phone</label><input type="tel" id="rPhone" autocomplete="tel" maxlength="30" /></div>
+    <div class="grid2">
+      <div class="field"><label for="rDistrict" data-i18n="f_district">District</label><input type="text" id="rDistrict" list="districts" maxlength="60" /></div>
+      <div class="field"><label for="rSector" data-i18n="f_sector">Sector</label><input type="text" id="rSector" maxlength="60" /></div>
+    </div>
+    <div class="field"><label for="rFarm" data-i18n="f_farmName">Farm name</label><input type="text" id="rFarm" maxlength="80" /></div>
+    <div class="field"><label for="rPass" data-i18n="passwordNew">Password * (8+ characters, letters and numbers)</label><input type="password" id="rPass" autocomplete="new-password" required /></div>
+    <label class="check"><input type="checkbox" id="rAgree" /> <span data-i18n="agree">I understand that my scans and farm location are stored so advisors can help me and warn farmers nearby.</span></label>
+    <div class="actions"><button type="submit" id="rBtn" data-i18n="btnRegister">Create a free account</button></div>
+    <div class="form-msg" id="rMsg" role="alert"></div>
+  </form>
+
+  <form id="pane-forgot" class="pane card-form" style="display:none" novalidate>
+    <h1 data-i18n="forgotTitle">Reset your password</h1>
+    <p class="lede" data-i18n="forgotLede">Enter your account email. We will send you a link to choose a new password.</p>
+    <div class="field"><label for="fEmail" data-i18n="email">Email</label><input type="email" id="fEmail" autocomplete="email" required /></div>
+    <div class="actions"><button type="submit" id="fBtn" data-i18n="sendLink">Send reset link</button>
+      <button type="button" class="linkish" data-goto="login" data-i18n="backToLogin">Back to log in</button></div>
+    <div class="form-msg" id="fMsg" role="alert"></div>
+  </form>
+
+  <form id="pane-reset" class="pane card-form" style="display:none" novalidate>
+    <h1 data-i18n="resetTitle">Choose a new password</h1>
+    <div class="field"><label for="nPass" data-i18n="passwordNew">Password * (8+ characters, letters and numbers)</label><input type="password" id="nPass" autocomplete="new-password" required /></div>
+    <div class="field"><label for="nPass2" data-i18n="passwordAgain">Type it again</label><input type="password" id="nPass2" autocomplete="new-password" required /></div>
+    <div class="actions"><button type="submit" id="nBtn" data-i18n="savePassword">Save password and log in</button></div>
+    <div class="form-msg" id="nMsg" role="alert"></div>
+  </form>
+
+  <datalist id="districts"></datalist>
+  <footer><a href="index.html" data-i18n="backHome">← Back to scanning</a></footer>
+</div>
+<script defer src="js/i18n.js"></script>
+<script defer src="js/ui.js"></script>
+<script defer src="js/store.js"></script>
+<script defer src="js/districts.js"></script>
+<script defer src="js/login.js"></script>
+</body>
+</html>

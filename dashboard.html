@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>ArmywormGuard</title>
+<style>body{background:#1C2818;color:#F3EEE1;font-family:sans-serif;display:grid;place-items:center;min-height:100vh;margin:0}</style>
+</head>
+<body>
+<p>Opening your dashboard…</p>
+<script>
+/* Links in emails point here; it opens the right dashboard for the logged-in role, keeping #outbreak-12 / #request-5. */
+fetch('/api/auth?action=me', { credentials: 'same-origin' })
+  .then(function (r) { return r.json(); })
+  .then(function (d) {
+    var hash = location.hash || '';
+    if (!d.user) { location.replace('login.html?next=' + encodeURIComponent('dashboard.html' + hash)); return; }
+    var page = d.user.role === 'admin' ? 'admin.html' : d.user.role === 'advisor' ? 'advisor.html' : 'farmer.html';
+    location.replace(page + hash);
+  })
+  .catch(function () { location.replace('login.html'); });
+</script>
+</body>
+</html>

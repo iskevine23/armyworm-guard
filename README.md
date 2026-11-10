@@ -1,82 +1,149 @@
-# ArmywormGuard
+# ArmywormGuard v2
 
-AI-powered detection, spread-risk estimation, and SMS alerting for fall armyworm
-(*Spodoptera frugiperda*) in maize fields. Static frontend + Vercel serverless
-functions — no framework, no build step.
+Fall armyworm (nkongwa) early warning for maize farmers in Rwanda and East Africa.
+Anyone can photograph a maize leaf and get a basic AI check. Farmers with a free account get full
+results, history, spread risk and help from agricultural advisors. When several farmers report
+serious damage close together, the system raises an outbreak alert and emails advisors and administrators.
 
-## What's actually implemented vs. what's a stand-in
+Static pages + Vercel serverless functions + PostgreSQL. No framework, no build step.
 
-| Feature | Status |
+## What each person can do
+
+| | Visitor | Farmer | Advisor | Administrator |
+|---|---|---|---|---|
+| Scan a leaf on the homepage | basic result (damage yes/no, stage, confidence) | full result | full result | full result |
+| What the AI saw, what to do, spread risk | — | ✓ | ✓ | ✓ |
+| Scan history (any phone), CSV export | — | own | area | all |
+| Request advisor help, follow the conversation | — | ✓ | answers | all |
+| Assistant (chat) | — | ✓ | ✓ | ✓ |
+| Outbreak alerts: view, investigate, confirm, close | — | sees *confirmed* ones near the farm | ✓ | ✓ |
+| Users, roles, suspend, delete, invites | — | — | — | ✓ |
+| Thresholds, limits, email log + retry, activity log, CSV reports | — | — | — | ✓ |
+
+Every rule is enforced on the server (`lib/access.js`, `lib/http.js`), not only hidden in the page.
+Advisors see requests assigned to them, unassigned requests in their districts, farmer scans in their
+districts, and every scan attached to a request or outbreak they can see.
+
+## Emails (real delivery over SMTP)
+
+| When | Who gets it |
 |---|---|
-| Photo upload + leaf damage classification | **Implemented** — calls Google's Gemini vision model (`/api/detect`) with a fall-armyworm-specific prompt. Real AI classification, not a mock. |
-| Spread-risk estimate | **Implemented as a heuristic**, not a trained ML model (`/api/predict-spread`). It scores risk from the distance, recency, and severity of other detections logged in the same browser session. Good enough for a working demo; would need real historical outbreak data and a proper spatio-temporal model to be trustworthy at scale. |
-| SMS alert | **Implemented, but requires your own Twilio account.** Without `TWILIO_*` env vars set, `/api/alert` simulates the message and shows you what *would* have been sent, so the flow is demoable without paying for SMS. |
-| Detection history / storage | **Session-only**, stored in the browser (`sessionStorage`). There is no database yet — refreshing the page or switching devices loses history. Fine for a prototype; you'll want Postgres/Supabase/Vercel KV before treating this as multi-user. |
+| Farmer creates a help request | the assigned advisor (or all advisors covering the district) |
+| Advisor replies / changes status / is assigned | the farmer / the advisor |
+| Farmer replies or marks resolved | the advisor |
+| Suspected outbreak raised automatically | advisors covering the district + all admins |
+| Outbreak status changes | advisors covering the district + admins |
+| Outbreak confirmed (and later closed) | farmers who reported it + farmers whose farm is inside the area |
+| Account created by admin, password reset, welcome | that person |
 
-## Setup
+Every email is written to `email_log` first, then sent. The log shows `sent` (with the server's message
+id), `failed` (with the error), or `skipped` (the user turned emails off). Admins can retry failures.
+Nothing is simulated: if email is not configured, sends are logged as failed and the admin overview
+shows a red "Email not configured" warning. Users also get the same messages in the app (🔔).
 
-1. **Install dependencies**
-   ```bash
-   npm install
-   ```
+## How outbreak detection works (`lib/outbreak.js`)
 
-2. **Get a Gemini API key** (required for detection, free tier available)
-   - https://aistudio.google.com/apikey → **Create API key** (no credit card needed for the free tier)
+A scan **counts** when it is from an active **farmer** account, the AI found a qualifying stage
+(default moderate or severe) with confidence ≥ 0.6, and it has a real location (phone GPS or the
+saved farm location, never the Musanze fallback).
 
-3. **(Optional) Get Twilio credentials** (for real SMS instead of simulated)
-   - https://www.twilio.com/ → Account SID, Auth Token, and a Twilio phone number
+When **N different farmers** (default 3) have counting scans within **R km** (default 5) during the
+last **D days** (default 7), a **suspected** alert is created. Repeat scans by one farmer always count
+once (distinct accounts), and the alert centre uses one point per farmer, so one person scanning
+many times cannot raise or move an alert. Later scans in the area join the open alert instead of
+creating new ones. Scans already in an alert closed as resolved or false alarm do not count again.
+A database lock prevents two simultaneous scans from creating duplicate alerts.
 
-4. **Local env file**
-   ```bash
-   cp .env.example .env
-   # fill in GEMINI_API_KEY (and Twilio vars if you have them)
-   ```
+Statuses: `suspected` (automatic) → `investigating` → `confirmed` (needs a field note; only a
+person can confirm) or `false_alarm` → `resolved`. Every change is kept in the alert's history.
+Admins change N, R, D, stages and confidence in **Settings**.
 
-5. **Run locally** (needs the Vercel CLI: `npm i -g vercel`)
-   ```bash
-   vercel dev
-   ```
+## Project layout
 
-## Deploying via GitHub + Vercel
-
-```bash
-git init
-git add .
-git commit -m "Initial commit: ArmywormGuard"
-git branch -M main
-git remote add origin https://github.com/<your-username>/<your-repo>.git
-git push -u origin main
+```
+index.html            public homepage: scanning only
+login.html            log in / sign up / forgot / reset password
+farmer.html           farmer dashboard     js/farmer.js
+advisor.html          advisor dashboard    js/advisor.js
+admin.html            admin dashboard      js/admin.js
+dashboard.html        email links land here and open the right dashboard
+js/ui.js              API calls, session, modals, toasts, tabs
+js/scanner.js, js/result.js, js/home.js   photo handling and result display
+js/threads.js, js/staff.js                help-request conversation, outbreaks, scan reports
+js/i18n.js, js/store.js, js/nearby.js     unchanged in spirit: languages, location, nearby directory
+api/auth.js           register, login, logout, me, forgot, reset, change-password
+api/scans.js          scan (public basic / full), claim, list, get, delete, export
+api/requests.js       help requests and replies
+api/outbreaks.js      outbreak alerts
+api/me.js             own profile, notifications
+api/admin.js          users, settings, stats, health, emails, activity, reports
+api/chat.js           assistant (logged in)       api/alert.js  send a result to own email/Telegram
+api/predict-spread.js unchanged public calculation
+lib/                  database, auth, mailer, outbreak engine, access rules, Gemini, validation
+db/schema.sql         all tables (created automatically on first request, or `npm run migrate`)
+scripts/              dev server, migrate, create-admin
+tests/e2e.mjs         38 end-to-end checks against real Postgres + a real SMTP server
 ```
 
-Then in Vercel:
-1. **New Project** → import the GitHub repo
-2. Framework preset: **Other** (no build step needed)
-3. Add environment variables in **Project Settings → Environment Variables**:
-   - `GEMINI_API_KEY` (required)
-   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` (optional)
-4. Deploy — Vercel auto-detects `/api/*.js` as serverless functions and serves
-   `index.html` statically.
+Vercel's Hobby plan allows 12 functions; this uses 9.
 
-Every push to `main` redeploys automatically once the repo is connected.
-Any time you add or change an environment variable, redeploy from the
-**Deployments** tab (⋯ → Redeploy) for it to take effect.
+## Deploy on Vercel (step by step)
 
-## How it works
+1. **Push** this folder to your GitHub repository (replace the old files; `.env` is ignored).
+2. **Database**: Vercel → your project → *Storage* → *Create* → **Neon (Postgres)** → connect to the
+   project. This adds `DATABASE_URL` automatically. (Or paste a Supabase/other Postgres URL yourself.)
+3. **Email**: create an account with an SMTP provider and verify your sending domain or address.
+   Brevo and Resend have free tiers; Gmail with an app password works for a small pilot.
+4. **Environment variables**: Settings → Environment Variables. Add everything marked REQUIRED in
+   `.env.example`: `JWT_SECRET`, `GEMINI_API_KEY`, `APP_URL`, `BOOTSTRAP_ADMIN_EMAIL`, and the
+   `SMTP_*` + `EMAIL_FROM` values (or `GMAIL_*`). Keep `TELEGRAM_BOT_TOKEN` if you used it before.
+5. **Redeploy** (Deployments → ⋯ → Redeploy). The tables are created on the first request.
+6. Open the site → **Sign up** with the `BOOTSTRAP_ADMIN_EMAIL` address → you are the administrator.
+   (Alternative: `npm run create-admin -- you@example.org "Your Name"` from your computer with
+   `DATABASE_URL` in `.env`.)
+7. Admin → **Overview**: all four checks should be green. **Emails** → *Send test email* to yourself.
+8. Admin → **Users** → *Add user* for each advisor, with the districts they cover. They receive an
+   email to choose their password.
+9. Admin → **Settings**: set the outbreak threshold for your pilot.
 
-1. **Scan** — user uploads/takes a leaf photo → `/api/detect` sends it to
-   Gemini with a fall-armyworm-specific prompt → returns whether the pest is
-   detected, confidence, damage stage, and a recommendation.
-2. **Predict** — the new detection plus any others logged this session are
-   sent to `/api/predict-spread`, which scores nearby, recent, severe cases
-   more heavily and returns a 0–100 risk score and an estimated weekly spread
-   distance.
-3. **Alert** — `/api/alert` sends (or simulates) an SMS with the stage, risk
-   level, and recommended action to the farmer's phone.
+Optional, after the first admin exists: remove `BOOTSTRAP_ADMIN_EMAIL` (it is ignored anyway once an admin exists).
 
-## Next steps worth prioritizing
+## Run locally
 
-- Swap `sessionStorage` for a real database so detections persist across
-  devices and farmers — this is what the spread-prediction accuracy depends on most.
-- Replace the heuristic in `predict-spread.js` with a model trained on real
-  historical outbreak/weather data once you have enough logged detections.
-- Add farmer accounts / phone-number-based login instead of a single-session flow.
+```bash
+npm install
+cp .env.example .env          # fill in DATABASE_URL, JWT_SECRET, GEMINI_API_KEY, email
+npm run migrate
+npm run dev                   # http://localhost:3000  (no Vercel account needed)
+```
+
+Tests (uses a throwaway database, which is wiped, a local SMTP server and a stand-in for the Gemini API):
+
+```bash
+TEST_DATABASE_URL=postgres://user:pass@localhost:5432/armyworm_test npm test
+```
+
+## Security notes
+
+- Passwords: bcrypt. Sessions: signed JWT in an HttpOnly, SameSite=Lax, Secure cookie; the user is
+  re-read from the database on each request, so suspensions, role changes and password changes
+  take effect immediately (other devices are signed out).
+- Cross-site requests are refused (JSON-only + Origin check). Inputs are validated and length-capped;
+  all SQL is parameterised; the pages insert all text with `textContent`.
+- Rate limits (stored in the database): login, sign-up, password reset, public scans per IP,
+  scans and assistant questions per user. Admins can change the usage limits.
+- No secret is ever sent to the browser. The old public `/api/detect` (anyone could spend your
+  Gemini quota) and the open email relay in `/api/alert` were removed / locked to logged-in users.
+- Visitors' unclaimed scans are deleted after 48 hours.
+
+## Honest limits
+
+- The leaf result is an AI estimate with no measured accuracy yet; outbreak alerts built on it are
+  *suspected* until an advisor checks the field.
+- Spread risk is still the rule-based heuristic, now fed with every farmer's reports instead of one phone.
+- One person creating several accounts could still look like several farmers. Watch the Users
+  list; email verification or phone (SMS) verification would close this gap.
+- Scan history saved on phones by v1 stays on those phones; it is not imported.
+- New Kinyarwanda text was written quickly. Ask a Kinyarwanda speaker and an agronomist to review
+  `js/i18n.js`. Advisor and admin screens are English only.
+- Photos and chat text go to Google Gemini; read the Gemini API terms before real farmers use it.

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#1C2818" />
+<meta name="robots" content="noindex" />
+<title>Advisor dashboard — ArmywormGuard</title>
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="field-texture"></div>
+<div class="wrap wide">
+  <header>
+    <a class="wordmark" href="index.html">Armyworm<span>Guard</span> <small class="tag-role">Advisor</small></a>
+    <div class="header-right"><div id="accountBar" class="account-bar"></div></div>
+  </header>
+
+  <nav class="tabs" aria-label="Advisor dashboard">
+    <button type="button" data-view="overview">Overview</button>
+    <button type="button" data-view="requests">Farmer cases</button>
+    <button type="button" data-view="outbreaks">Outbreak alerts</button>
+    <button type="button" data-view="scans">Scan reports</button>
+    <button type="button" data-view="profile">My profile</button>
+  </nav>
+
+  <div id="view-overview" class="view">
+    <h1 id="hello">Hello</h1>
+    <div id="coverageNote" class="callout" style="display:none"></div>
+    <div class="stats" id="advStats"></div>
+    <h2 class="sub">Open outbreak alerts</h2>
+    <div id="ovAlerts" class="list"></div>
+    <h2 class="sub">Cases waiting for you</h2>
+    <div id="ovCases" class="list"></div>
+  </div>
+  <div id="view-requests" class="view"><div id="casesBox"></div></div>
+  <div id="view-outbreaks" class="view"><div id="outbreaksHead"><h1>Outbreak alerts</h1>
+    <p class="lede">Raised automatically when enough different farmers report serious damage close together. Investigate, then confirm or mark as a false alarm.</p></div>
+    <div id="outbreaksBox"></div></div>
+  <div id="view-scans" class="view"><h1>Scan reports</h1><div id="scansBox"></div></div>
+  <div id="view-profile" class="view">
+    <h1>My profile</h1>
+    <form id="profForm" novalidate>
+      <div class="grid2">
+        <div class="field"><label for="pName">Full name</label><input type="text" id="pName" maxlength="120" /></div>
+        <div class="field"><label for="pPhone">Phone (shown to farmers in replies)</label><input type="tel" id="pPhone" maxlength="30" /></div>
+        <div class="field"><label for="pOrg">Organisation</label><input type="text" id="pOrg" maxlength="120" /></div>
+        <div class="field"><label for="pTitle">Title</label><input type="text" id="pTitle" maxlength="80" placeholder="e.g. Sector agronomist" /></div>
+        <div class="field"><label for="pDistrict">Home district</label><input type="text" id="pDistrict" list="districts" maxlength="60" /></div>
+        <div class="field"><label for="pSector">Sector</label><input type="text" id="pSector" maxlength="60" /></div>
+      </div>
+      <div class="field"><label for="pCoverage">Districts I cover (comma separated; empty = all districts)</label><input type="text" id="pCoverage" placeholder="Musanze, Burera" /></div>
+      <label class="check"><input type="checkbox" id="pEmails" /> <span>Email me about new cases, replies and outbreak alerts</span></label>
+      <div class="actions"><button type="submit" id="pSave">Save</button></div>
+    </form>
+    <h2 class="sub">Change password</h2>
+    <form id="pwForm" novalidate>
+      <div class="grid2">
+        <div class="field"><label for="pwCur">Current password</label><input type="password" id="pwCur" autocomplete="current-password" /></div>
+        <div class="field"><label for="pwNew">New password</label><input type="password" id="pwNew" autocomplete="new-password" /></div>
+      </div>
+      <div class="actions"><button type="submit" class="secondary" id="pwBtn">Change password</button></div>
+    </form>
+  </div>
+  <datalist id="districts"></datalist>
+</div>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script defer src="js/i18n.js"></script>
+<script defer src="js/ui.js"></script>
+<script defer src="js/districts.js"></script>
+<script defer src="js/threads.js"></script>
+<script defer src="js/staff.js"></script>
+<script defer src="js/advisor.js"></script>
+</body>
+</html>

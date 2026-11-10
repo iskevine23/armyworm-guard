@@ -1,12 +1,24 @@
 {
   "name": "armyworm-guard",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "AI-powered fall armyworm detection, spread prediction, and Telegram/email alerts",
+  "type": "module",
+  "description": "AI-powered fall armyworm detection with farmer, advisor and admin dashboards, real email notifications and automatic outbreak detection",
+  "engines": { "node": ">=18" },
   "scripts": {
-    "dev": "vercel dev"
+    "dev": "node scripts/dev-server.mjs",
+    "vercel-dev": "vercel dev",
+    "migrate": "node scripts/migrate.mjs",
+    "create-admin": "node scripts/create-admin.mjs",
+    "test": "node tests/e2e.mjs"
   },
   "dependencies": {
-    "nodemailer": "^6.9.16"
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.16",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "smtp-server": "^3.13.6"
   }
 }

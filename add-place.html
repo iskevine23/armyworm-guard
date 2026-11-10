@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>ArmywormGuard — add a place</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="field-texture"></div>
+<div class="wrap">
+  <header>
+    <div class="wordmark">Armyworm<span>Guard</span></div>
+    <div class="tagline">Admin helper</div>
+  </header>
+
+  <h1>Add an advisor or agro-dealer</h1>
+  <p class="lede">Fill this in at the shop or office. It creates one entry that you paste into <code>data/directory.json</code> on GitHub. Only add contacts you have checked yourself.</p>
+
+  <div class="field"><label for="type">Type</label>
+    <select id="type">
+      <option value="agro-dealer">Agro-dealer (farm medicine shop)</option>
+      <option value="advisor">Farm advisor / agronomist</option>
+    </select>
+  </div>
+  <div class="field"><label for="name">Name *</label><input type="text" id="name" maxlength="100" /></div>
+  <div class="field"><label for="organization">Organisation (optional)</label><input type="text" id="organization" maxlength="120" /></div>
+  <div class="field"><label for="phone">Phone (calls)</label><input type="text" id="phone" placeholder="0788 000 000" maxlength="30" /></div>
+  <div class="field"><label for="whatsapp">WhatsApp number (if different)</label><input type="text" id="whatsapp" maxlength="30" /></div>
+  <div class="field"><label for="district">District</label><input type="text" id="district" maxlength="60" /></div>
+  <div class="field"><label for="sector">Sector</label><input type="text" id="sector" maxlength="60" /></div>
+  <div class="field"><label for="address">Landmark / address</label><input type="text" id="address" maxlength="120" /></div>
+  <div class="field"><label for="hours">Opening hours</label><input type="text" id="hours" placeholder="Mon-Sat 08:00-18:00" maxlength="80" /></div>
+  <div class="field"><label for="services">Services or products (separate with commas)</label><input type="text" id="services" maxlength="200" /></div>
+
+  <div class="alert-row">
+    <div class="field" style="flex:1;min-width:140px"><label for="lat">Latitude *</label><input type="text" id="lat" /></div>
+    <div class="field" style="flex:1;min-width:140px"><label for="lng">Longitude *</label><input type="text" id="lng" /></div>
+  </div>
+  <div class="actions">
+    <button type="button" id="useLoc" class="secondary">Use my current location</button>
+  </div>
+  <div id="status" class="risk-basis"></div>
+
+  <div class="actions">
+    <button type="button" id="gen">Create entry</button>
+    <button type="button" id="copy" class="secondary">Copy</button>
+  </div>
+  <pre id="out" class="code-out"></pre>
+  <p class="note">Open <code>data/directory.json</code> on GitHub, add a comma after the last entry inside <code>"entries": [ ... ]</code>, paste this block, and commit. Vercel redeploys and the place appears in the app. Delete the three SAMPLE entries once you have real ones.</p>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const num = (v) => { const s = String(v || '').trim().replace(',', '.'); return s === '' ? NaN : Number(s); };
+
+$('useLoc').addEventListener('click', () => {
+  $('status').textContent = 'Getting location…';
+  if (!navigator.geolocation) { $('status').textContent = 'This browser cannot give a location.'; return; }
+  navigator.geolocation.getCurrentPosition(
+    (p) => { $('lat').value = p.coords.latitude.toFixed(5); $('lng').value = p.coords.longitude.toFixed(5); $('status').textContent = 'Location filled in (accuracy about ' + Math.round(p.coords.accuracy) + ' m).'; },
+    () => { $('status').textContent = 'Could not get the location. Allow location access, or type the coordinates.'; },
+    { timeout: 15000, maximumAge: 0, enableHighAccuracy: true }
+  );
+});
+
+function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'place'; }
+
+$('gen').addEventListener('click', () => {
+  const name = $('name').value.trim();
+  const lat = num($('lat').value), lng = num($('lng').value);
+  if (!name) { $('status').textContent = 'Enter a name.'; return; }
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    $('status').textContent = 'Enter valid coordinates, or press "Use my current location".'; return;
+  }
+  const entry = {
+    id: slug(name) + '-' + Math.random().toString(36).slice(2, 6),
+    type: $('type').value,
+    name: name,
+    organization: $('organization').value.trim(),
+    phone: $('phone').value.trim(),
+    whatsapp: $('whatsapp').value.trim(),
+    district: $('district').value.trim(),
+    sector: $('sector').value.trim(),
+    address: $('address').value.trim(),
+    lat: Number(lat.toFixed(5)),
+    lng: Number(lng.toFixed(5)),
+    hours: $('hours').value.trim(),
+    services: $('services').value.split(',').map((s) => s.trim()).filter(Boolean)
+  };
+  $('out').textContent = JSON.stringify(entry, null, 2);
+  $('status').textContent = 'Entry created. Copy it into data/directory.json.';
+});
+
+$('copy').addEventListener('click', async () => {
+  const text = $('out').textContent;
+  if (!text) { $('status').textContent = 'Create the entry first.'; return; }
+  try { await navigator.clipboard.writeText(text); $('status').textContent = 'Copied.'; }
+  catch { $('status').textContent = 'Could not copy automatically. Select the text and copy it.'; }
+});
+</script>
+</body>
+</html>

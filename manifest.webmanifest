@@ -1,0 +1,15 @@
+{
+  "name": "ArmywormGuard",
+  "short_name": "ArmywormGuard",
+  "description": "Check maize leaves for fall armyworm (nkongwa), see the spread risk, and find advisors and agro-dealers nearby.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1C2818",
+  "theme_color": "#1C2818",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
