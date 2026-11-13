@@ -9,6 +9,7 @@
     "dev": "node scripts/dev-server.mjs",
     "vercel-dev": "vercel dev",
     "migrate": "node scripts/migrate.mjs",
+    "check-db": "node scripts/check-db.mjs",
     "create-admin": "node scripts/create-admin.mjs",
     "test": "node tests/e2e.mjs"
   },
