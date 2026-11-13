@@ -132,6 +132,21 @@ connection string matches the database. Fix it in this order:
    `npm run check-db` — it prints the target (never the password) and the exact fix for
    the error code it hits.
 
+## Troubleshooting: TLS errors (`SELF_SIGNED_CERT_IN_CHAIN`, `DEPTH_ZERO_SELF_SIGNED_CERT`)
+
+Supabase's pooler serves a certificate chain that newer Node.js runtimes do not trust. Symptoms:
+every page that touches the database fails, and `/api/admin?action=health` reports
+`dbCode: "SELF_SIGNED_CERT_IN_CHAIN"`.
+
+- The app recovers automatically: the first failed handshake is retried once without certificate
+  verification and a line is written to the function log
+  (`Database TLS: the server's certificate chain is not trusted…`).
+- To make it explicit, set `DATABASE_SSL=no-verify` (Production and Preview) and redeploy.
+- To refuse any downgrade instead, set `DATABASE_SSL=strict`.
+- `DATABASE_SSL=disable` turns TLS off entirely (local Postgres only).
+- The `sslmode=` parameter inside the URL is ignored when `DATABASE_SSL` is set, because
+  pg would otherwise treat `sslmode=require` as `verify-full` and reject the connection anyway.
+
 ## Run locally
 
 ```bash
