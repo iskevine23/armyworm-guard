@@ -9,9 +9,13 @@ const sumBy = (rows, key, val) => rows.filter((r) => !key || r[key[0]] === key[1
 async function renderOverview() {
   const [hl, st] = await Promise.all([API.get('/api/admin?action=health'), API.get('/api/admin?action=stats')]);
   const health = clear(byId('health'));
-  const item = (ok, name, okText, badText) => h('div.health-item.' + (ok ? 'ok' : 'bad'), h('span.dotc'), h('strong', name), h('span', ok ? okText : badText));
+  const item = (ok, name, okText, badText, title) =>
+    h('div.health-item.' + (ok ? 'ok' : 'bad'), title ? { title } : null, h('span.dotc'), h('strong', name), h('span', ok ? okText : badText));
   health.append(
-    item(hl.database, 'Database', 'connected', 'not reachable — check DATABASE_URL'),
+    item(hl.database, 'Database',
+      'connected' + (hl.dbTarget ? ` · ${hl.dbTarget.host || '?'} / ${hl.dbTarget.user || '?'} / ${hl.dbTarget.database || '?'}` : ''),
+      hl.dbError ? `not reachable (${hl.dbError.code || 'error'}) — ${hl.dbError.message}` : 'not reachable — check DATABASE_URL',
+      hl.dbHelp || ''),
     item(hl.email, 'Email', (hl.emailProvider || '') + (hl.emailFrom ? ' · from ' + hl.emailFrom : ''), 'not configured — set SMTP_* or GMAIL_* variables'),
     item(hl.gemini, 'AI (Gemini)', 'configured', 'GEMINI_API_KEY missing'),
     item(!!hl.appUrl, 'APP_URL', hl.appUrl || '', 'not set — email links use the request address'));

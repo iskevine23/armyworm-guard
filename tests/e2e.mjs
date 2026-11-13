@@ -349,6 +349,13 @@ try {
     assert.ok(a.activity.some((x) => x.action === "outbreak_status"));
     const h = expect(await admin.get("/api/admin?action=health"), 200);
     assert.equal(h.database, true); assert.equal(h.email, true);
+    assert.equal(h.dbCode, null);
+    // Health must stay reachable without a session: when the DB credentials break nobody can log in,
+    // and this endpoint is how the operator finds out why.
+    const pub = expect(await anon.get("/api/admin?action=health"), 200);
+    assert.equal(pub.database, true);
+    assert.equal(pub.dbTarget, undefined, "anonymous callers do not get infrastructure details");
+    assert.equal(pub.dbHelp, undefined);
   });
   await step("CSV reports download", async () => {
     for (const type of ["scans", "requests", "outbreaks", "users", "districts", "emails"]) {

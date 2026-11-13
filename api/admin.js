@@ -4,7 +4,7 @@
 //   PUT  settings
 //   DELETE user&id=
 import { api, HttpError, str, email as emailField, oneOf, id as idField, paging } from "../lib/http.js";
-import { one, many, query, tx, dbConfigured } from "../lib/db.js";
+import { one, many, query, tx, dbConfigured, describeConnection, dbFailure } from "../lib/db.js";
 import { getUser, hashPassword, randomToken, USER_COLUMNS, publicUser } from "../lib/auth.js";
 import { getSettings, updateSettings, logActivity } from "../lib/system.js";
 import { emailConfigured, emailConfig, retryEmail, renderEmail, sendEmail } from "../lib/mailer.js";
@@ -68,14 +68,37 @@ export default api(
       },
     },
 
+    // Deliberately open: when the database credentials are broken nobody can log in, so an
+    // admin-only endpoint could never be reached to diagnose exactly that outage. Anonymous
+    // callers get a redacted summary; administrators get the full target and fix instructions.
     "GET health": {
-      auth: ADMIN,
-      fn: async () => {
+      auth: null,
+      fn: async ({ user }) => {
+        const isAdmin = user?.role === "admin";
         let db = false;
-        try { await one("SELECT 1 AS ok"); db = true; } catch {}
+        let failure = null;
+        try {
+          await one("SELECT 1 AS ok");
+          db = true;
+        } catch (err) {
+          failure = dbFailure(err) || { code: err?.code || "ERROR", client: "Database error", help: String(err?.message || err) };
+        }
+        const base = {
+          ok: true,
+          database: db && dbConfigured(),
+          databaseConfigured: dbConfigured(),
+          dbCode: db ? null : failure?.code || "ERROR",
+        };
+        if (!isAdmin) {
+          // Redacted: enough for a "status" page to explain why nothing saves, no infra details.
+          return { ...base, message: db ? "Database connected" : failure?.client || "Database unavailable" };
+        }
         const cfg = emailConfig();
         return {
-          database: db && dbConfigured(),
+          ...base,
+          dbTarget: describeConnection(),
+          dbError: db ? null : { code: failure.code, message: failure.client },
+          dbHelp: db ? null : failure.help,
           email: emailConfigured(),
           emailProvider: cfg ? (cfg.kind === "gmail" ? "Gmail" : process.env.SMTP_HOST) : null,
           emailFrom: cfg?.from || null,

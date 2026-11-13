@@ -108,6 +108,30 @@ Vercel's Hobby plan allows 12 functions; this uses 9.
 
 Optional, after the first admin exists: remove `BOOTSTRAP_ADMIN_EMAIL` (it is ignored anyway once an admin exists).
 
+## Troubleshooting: `password authentication failed for user "postgres"` (28P01)
+
+This means the app reached your Postgres server but the password in `DATABASE_URL` is wrong.
+It is a deployment setting, not an app bug — every request fails the same way until the
+connection string matches the database. Fix it in this order:
+
+1. **Get a fresh URL.** In Neon (Dashboard → your project → *Connect*) or Supabase
+   (Project Settings → Database → *Connection pooling*, port 6543), copy the **pooled**
+   connection string with the provider's copy button. Never retype the password: characters
+   like `@ # / ? %` break the URL when typed by hand. On Supabase the pooler user must be
+   `postgres.<project-ref>` — plain `postgres` is rejected.
+2. **Reset the password if unsure.** Neon: *Roles → Reset password*. Supabase: *Database →
+   Reset database password*. Then copy the new string again.
+3. **Paste it into Vercel.** Settings → Environment Variables: set `DATABASE_URL` for
+   **Production and Preview**. Delete any duplicate or stale `DATABASE_URL`/`POSTGRES_URL`
+   that points at a different database — the app uses `DATABASE_URL` first, so a wrong
+   hand-pasted value shadows the correct one from the Vercel/Neon integration.
+4. **Redeploy.** Changing environment variables does nothing until you redeploy
+   (Deployments → ⋯ → Redeploy). The server logs will then show
+   `Database: using DATABASE_URL → host=… user=…` — check it names the right host/user.
+5. **Verify before redeploying.** Put the same value in your local `.env` and run
+   `npm run check-db` — it prints the target (never the password) and the exact fix for
+   the error code it hits.
+
 ## Run locally
 
 ```bash

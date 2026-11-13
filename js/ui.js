@@ -135,8 +135,11 @@ function toast(msg, kind) {
   if (!box) { box = h('div.toasts', { id: 'toasts' }); document.body.appendChild(box); }
   const t = h('div.toast' + (kind ? '.' + kind : ''), { role: 'status' }, msg);
   box.appendChild(t);
-  setTimeout(() => t.classList.add('gone'), 4200);
-  setTimeout(() => t.remove(), 4800);
+  // Longer messages (e.g. "the database is misconfigured") need time to be read, and a tap dismisses them.
+  const life = Math.min(16000, 4200 + String(msg).length * 30);
+  t.addEventListener('click', () => t.remove());
+  setTimeout(() => t.classList.add('gone'), life);
+  setTimeout(() => t.remove(), life + 600);
 }
 
 function modal(title, body, actions) {
