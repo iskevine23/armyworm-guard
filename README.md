@@ -209,6 +209,20 @@ Vercel's Hobby plan allows 12 functions; this uses 12 (api/demo.js included).
 
 Optional, after the first admin exists: remove `BOOTSTRAP_ADMIN_EMAIL` (it is ignored anyway once an admin exists).
 
+## Troubleshooting: `tenant/user "postgres.<ref>" not found` on Supabase
+
+This is not a password problem — the pooler does not host that project under the hostname you are
+using. Supabase has two pooler hostnames per region and projects are moved between them:
+
+```
+postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres
+postgresql://postgres.<ref>:<password>@aws-1-<region>.pooler.supabase.com:6543/postgres
+```
+
+Copy the string from Project Settings → Database → Connection pooling, or simply try the other
+prefix. A wrong hostname fails instantly and identically (`XX000`), so it is cheap to test; set
+`DEMO_DEBUG=1` on the demo project to see the real message instead of "Server error".
+
 ## Troubleshooting: `password authentication failed for user "postgres"` (28P01)
 
 This means the app reached your Postgres server but the password in `DATABASE_URL` is wrong.
