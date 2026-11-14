@@ -133,7 +133,7 @@ export default api(
             body: `${subject} — ${where}`,
             link: advisorLink(r.id),
             email: {
-              subject: `[ArmywormGuard] Farmer needs help: ${subject} (#${r.id})`,
+              subject: `[Umurima] Farmer needs help: ${subject} (#${r.id})`,
               heading: "A farmer has asked for help",
               lines: [message],
               details,
@@ -250,7 +250,7 @@ export default api(
             body: text.slice(0, 300),
             link: advisorLink(r.id),
             email: {
-              subject: `[ArmywormGuard] Farmer replied: ${r.subject} (#${r.id})`,
+              subject: `[Umurima] Farmer replied: ${r.subject} (#${r.id})`,
               heading: `${user.full_name} replied`,
               lines: [text],
               details: [["Request", `#${r.id} — ${r.subject}`], ["Status", STATUS_LABEL[after.status]], ["Farmer phone", user.phone || "—"]],
@@ -264,7 +264,7 @@ export default api(
             body: text.slice(0, 300),
             link: farmerLink(r.id),
             email: {
-              subject: `[ArmywormGuard] An advisor answered your request: ${r.subject}`,
+              subject: `[Umurima] An advisor answered your request: ${r.subject}`,
               heading: `${user.full_name} answered your request`,
               lines: [text],
               details: [["Request", `#${r.id} — ${r.subject}`], ["Status", STATUS_LABEL[after.status]], ["Advisor", user.full_name], ["Advisor phone", user.phone || "—"]],
@@ -306,7 +306,7 @@ export default api(
             body: note || `Your request "${r.subject}" was updated by ${user.full_name}.`,
             link: farmerLink(r.id),
             email: {
-              subject: `[ArmywormGuard] Request #${r.id} updated: ${STATUS_LABEL[status]}`,
+              subject: `[Umurima] Request #${r.id} updated: ${STATUS_LABEL[status]}`,
               heading: `Your request is now: ${STATUS_LABEL[status]}`,
               lines: [note || `${user.full_name} updated your request "${r.subject}".`],
               details: [["Request", `#${r.id} — ${r.subject}`], ["Updated by", user.full_name]],
@@ -320,7 +320,7 @@ export default api(
             body: note || r.subject,
             link: advisorLink(r.id),
             email: {
-              subject: `[ArmywormGuard] Request #${r.id}: farmer marked it ${STATUS_LABEL[status]}`,
+              subject: `[Umurima] Request #${r.id}: farmer marked it ${STATUS_LABEL[status]}`,
               heading: `${user.full_name} marked the request ${STATUS_LABEL[status]}`,
               lines: [note || r.subject],
               buttonLabel: "Open the request",
@@ -358,7 +358,7 @@ export default api(
             body: `${r.subject} — farmer ${r.farmer_name}`,
             link: advisorLink(r.id),
             email: {
-              subject: `[ArmywormGuard] Request #${r.id} assigned to you: ${r.subject}`,
+              subject: `[Umurima] Request #${r.id} assigned to you: ${r.subject}`,
               heading: "A help request was assigned to you",
               lines: [r.message],
               details: [["Request", `#${r.id}`], ["Farmer", r.farmer_name], ["Phone", r.farmer_phone || "—"], ["Area", [r.sector, r.district].filter(Boolean).join(", ") || "—"]],

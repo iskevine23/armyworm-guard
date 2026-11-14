@@ -150,7 +150,7 @@ const server = spawn(process.execPath, [path.join(root, "scripts/dev-server.mjs"
     GEMINI_API_KEY: "test", GEMINI_API_BASE: `http://127.0.0.1:${GEM_PORT}`, GEMINI_MODELS: "gemini-test",
     CLIMATE_API_BASE: `http://127.0.0.1:${CLIM_PORT}`,
     SMTP_HOST: "127.0.0.1", SMTP_PORT: String(SMTP_PORT), SMTP_SECURE: "false", SMTP_IGNORE_TLS: "true", SMTP_USER: "", SMTP_PASS: "",
-    EMAIL_FROM: "ArmywormGuard <alerts@armywormguard.test>", APP_URL: BASE, BOOTSTRAP_ADMIN_EMAIL: "boss@test.rw",
+    EMAIL_FROM: "Umurima <alerts@umurima.test>", APP_URL: BASE, BOOTSTRAP_ADMIN_EMAIL: "boss@test.rw",
     GMAIL_USER: "", GMAIL_APP_PASSWORD: "",
   },
   stdio: ["ignore", "pipe", "pipe"],
@@ -168,7 +168,7 @@ const demoServer = spawn(process.execPath, [path.join(root, "scripts/dev-server.
     ...process.env, PORT: String(PORT + 1), DATABASE_URL: DB, JWT_SECRET: "test-secret-0123456789-0123456789-abcdef",
     GEMINI_API_KEY: "test", GEMINI_API_BASE: `http://127.0.0.1:${GEM_PORT}`, GEMINI_MODELS: "gemini-test",
     CLIMATE_API_BASE: `http://127.0.0.1:${CLIM_PORT}`,
-    EMAIL_FROM: "ArmywormGuard <alerts@armywormguard.test>", APP_URL: DEMO_BASE,
+    EMAIL_FROM: "Umurima <alerts@umurima.test>", APP_URL: DEMO_BASE,
     GMAIL_USER: "", GMAIL_APP_PASSWORD: "", SMTP_HOST: "", DEMO_MODE: "1",
   },
   stdio: ["ignore", "pipe", "pipe"],
@@ -519,7 +519,7 @@ try {
     const d = expect(await demo.get("/api/auth?action=me"), 200);
     assert.equal(d.user.role, "farmer");
     assert.equal(d.demo.persona, "farmer");
-    assert.ok(d.user.email.endsWith("@armywormguard.test"));
+    assert.ok(d.user.email.endsWith("@umurima.test"));
   });
   await step("the demo database seeds itself with realistic history", async () => {
     const d = expect(await demo.get("/api/scans?action=list&limit=50"), 200);
@@ -550,11 +550,11 @@ try {
     assert.ok(d.total >= 5);
   });
   await step("login, registration and password reset are refused in the demo", async () => {
-    const r = await demo.post("/api/auth?action=login", { email: "demo.farmer@armywormguard.test", password: "anything12" });
+    const r = await demo.post("/api/auth?action=login", { email: "demo.farmer@umurima.test", password: "anything12" });
     assert.equal(r.status, 403);
     assert.ok(/demo/i.test(r.data.error));
     expect(await demo.post("/api/auth?action=register", { fullName: "X Y", email: "x@y.test", password: "Password123" }), 403);
-    expect(await demo.post("/api/auth?action=forgot", { email: "demo.farmer@armywormguard.test" }), 403);
+    expect(await demo.post("/api/auth?action=forgot", { email: "demo.farmer@umurima.test" }), 403);
   });
   await step("a visitor can still scan, and the scan is saved as the demo farmer", async () => {
     assert.equal((await demo.get("/api/demo?action=switch&persona=farmer&next=farmer.html")).status, 302);

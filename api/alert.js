@@ -22,7 +22,7 @@ function buildMessage({ crop, pest, stage, riskLevel, recommendation, lang }) {
   const cause = pest && pest !== "none" ? pest : null;
   if (lang === "rw") {
     return (
-      `ArmywormGuard — ubutumwa bw'iburira\n` +
+      `Umurima — ubutumwa bw'iburira\n` +
       `Igihingwa: ${cropRw}\n` +
       (cause ? `Icyabonetse: ${cause}\n` : "") +
       `Uko cyangiritse: ${RW.stage[stage] || "bitazwi"}\n` +
@@ -31,7 +31,7 @@ function buildMessage({ crop, pest, stage, riskLevel, recommendation, lang }) {
     );
   }
   return (
-    `ArmywormGuard alert\n` +
+    `Umurima alert\n` +
     `Crop: ${cropEn}\n` +
     (cause ? `Suspected cause: ${cause}\n` : "") +
     `Damage: ${(stage || "unknown").toUpperCase()}\n` +
@@ -53,11 +53,11 @@ export default api(
 
         if (body.channel === "email") {
           const r = renderEmail({
-            heading: lang === "rw" ? "Ibyavuye mu isuzuma" : "Your ArmywormGuard scan result",
+            heading: lang === "rw" ? "Ibyavuye mu isuzuma" : "Your Umurima scan result",
             lines: text.split("\n").slice(1),
             details: [["Crop", cropLabel(scan.crop, lang)], ["Suspected cause", scan.pest_label && scan.pest_label !== "none" ? scan.pest_label : "not identified"], ["Scan", `#${scan.id}`], ["Time", new Date(scan.created_at).toUTCString()]],
           });
-          const res = await sendEmail({ to: user.email, userId: user.id, subject: lang === "rw" ? `ArmywormGuard: ${cropLabel(scan.crop, "rw")} — ibyavuye mu isuzuma` : `ArmywormGuard: ${cropLabel(scan.crop, "en")} scan — ${scan.stage} damage`, text, html: r.html, template: "scan_result", relatedType: "scan", relatedId: scan.id, respectPreference: false });
+          const res = await sendEmail({ to: user.email, userId: user.id, subject: lang === "rw" ? `Umurima: ${cropLabel(scan.crop, "rw")} — ibyavuye mu isuzuma` : `Umurima: ${cropLabel(scan.crop, "en")} scan — ${scan.stage} damage`, text, html: r.html, template: "scan_result", relatedType: "scan", relatedId: scan.id, respectPreference: false });
           if (!res.sent) throw new HttpError(502, "The email could not be sent right now. The administrator has been shown the error.");
           await logActivity(user.id, "alert_email", "scan", scan.id, null, ip);
           return { sent: true, channel: "email", to: user.email };

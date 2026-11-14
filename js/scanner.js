@@ -53,6 +53,7 @@ function initScanner(o) {
     o.fileInput.value = '';
     o.preview.src = '';
     o.preview.style.display = 'none';
+    if (o.preview.classList) o.preview.classList.remove('shown');
     base64Image = null;
     thumb = null;
     o.scanBtn.disabled = true;
@@ -79,6 +80,7 @@ function initScanner(o) {
         base64Image = result.split(',')[1];
         o.preview.src = result;
         o.preview.style.display = 'block';
+        if (o.preview.classList) o.preview.classList.add('shown');
         o.scanBtn.disabled = false;
       };
       img.onerror = () => toast('This photo could not be opened. Try another one.', 'bad');

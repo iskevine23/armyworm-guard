@@ -4,8 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#1C2818" />
-<meta name="description" content="Photograph a maize leaf and check it for fall armyworm (nkongwa) damage in seconds. Free, no account needed." />
-<title>ArmywormGuard — Fall Armyworm Detection</title>
+<meta name="description" content="Umurima — photograph a leaf, see what is damaging your crop, and get the weather warning behind it. 13 crops, free, no account needed." />
+<title>Umurima — crop pest and disease detection</title>
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" href="icons/icon-192.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -15,12 +15,19 @@
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+<div id="scrollProgress" aria-hidden="true"></div>
 <div class="field-texture"></div>
 <div class="wrap">
 
-  <header>
-    <a class="wordmark" href="index.html">Armyworm<span>Guard</span></a>
+  <header class="site-header">
+    <a class="wordmark" href="index.html"><svg class="wm-leaf" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20C4 11 11 4 20 4c0 9-7 16-16 16Z"/><path d="M4 20C8 16 12 12 17 8" fill="none"/></svg>Umurima</a>
     <div class="header-right">
+      <nav class="header-nav" aria-label="Sections">
+        <a href="#scout" data-i18n="navScan">Scan</a>
+        <a href="#how" data-i18n="navHow">How it works</a>
+        <a href="#conditions" data-i18n="navConditions">Conditions</a>
+        <a href="#faq" data-i18n="navAbout">About</a>
+      </nav>
       <select id="langSelect" aria-label="Language">
         <option value="en">English</option>
         <option value="rw">Kinyarwanda</option>
@@ -29,16 +36,94 @@
     </div>
   </header>
 
-  <h1 data-i18n="h1">Photograph a leaf. Know the risk in seconds.</h1>
-  <p class="lede" data-i18n="pub_lede">Take or upload a photo of a maize leaf. ArmywormGuard checks it for fall armyworm damage. Free, and no account is needed.</p>
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div data-reveal>
+      <div class="eyebrow" data-i18n="heroKicker">Crop health · Rwanda</div>
+      <h1 data-i18n="h1">Photograph a leaf. Know the risk in seconds.</h1>
+      <p class="lede" data-i18n="pub_lede">Take or upload a photo of a leaf. Pick your crop, and Umurima checks it for the pests and diseases that matter on that crop, then warns you about the weather that makes them worse. Free, and no account is needed.</p>
+      <div class="cta-row">
+        <button class="btn-lg" type="button" id="heroScan" data-i18n="ctaScan">Scan a leaf now</button>
+        <a class="btn secondary btn-lg" href="#how" data-i18n="ctaHow">See how it works</a>
+      </div>
+      <div class="trust">
+        <span><span class="tick">✓</span> <span data-i18n="trust1">13 crops</span></span>
+        <span><span class="tick">✓</span> <span data-i18n="trust2">No account needed</span></span>
+        <span><span class="tick">✓</span> <span data-i18n="trust3">Works on a slow connection</span></span>
+      </div>
+    </div>
 
-  <section>
+    <div class="hero-art" data-reveal aria-hidden="true">
+      <div class="plate"></div>
+      <svg class="leaf-art" viewBox="0 0 320 300" role="presentation">
+        <defs>
+          <linearGradient id="leafGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#9BBE72"></stop>
+            <stop offset="55%" stop-color="#7FA65B"></stop>
+            <stop offset="100%" stop-color="#4F6B36"></stop>
+          </linearGradient>
+        </defs>
+        <path d="M162 288 C 40 250, 8 132, 92 24 C 196 46, 300 120, 274 226 C 254 292, 204 292, 162 288 Z" fill="url(#leafGrad)" opacity="0.95"/>
+        <path class="vein" d="M162 288 C 140 214, 136 128, 150 44"/>
+        <path class="vein" d="M152 236 C 120 222, 96 200, 84 172"/>
+        <path class="vein" d="M148 196 C 182 182, 214 160, 232 128"/>
+        <path class="vein" d="M146 156 C 118 142, 100 118, 94 92"/>
+        <path class="vein" d="M147 118 C 176 104, 200 84, 214 58"/>
+        <g class="bite">
+          <circle cx="196" cy="96" r="9"></circle>
+          <circle cx="212" cy="112" r="6"></circle>
+          <circle cx="182" cy="112" r="5"></circle>
+          <circle cx="120" cy="196" r="7"></circle>
+        </g>
+        <circle class="larva" r="7">
+          <animateMotion dur="7s" repeatCount="indefinite" keyPoints="0;1;0" keyTimes="0;0.5;1" calcMode="linear" path="M118 236 C 150 196, 196 178, 226 140"/>
+        </circle>
+        <circle class="larva" r="4.5">
+          <animateMotion dur="7s" repeatCount="indefinite" keyPoints="0;1;0" keyTimes="0;0.5;1" calcMode="linear" path="M118 236 C 150 196, 196 178, 226 140" begin="0.18s"/>
+        </circle>
+      </svg>
+      <span class="chip-float a"><span class="swatch"></span> <span data-i18n="chip1">fall armyworm · 0.91</span></span>
+      <span class="chip-float b"><span class="swatch" style="background:var(--sun)"></span> <span data-i18n="chip2">rain 30d · -0%</span></span>
+      <span class="chip-float c"><span class="swatch" style="background:var(--sky,#8FB8E8)"></span> <span data-i18n="chip3">soil moisture · 0.68</span></span>
+    </div>
+  </section>
+
+  <!-- ============ live numbers ============ -->
+  <div class="stat-strip" data-reveal>
+    <div class="item"><div class="n" data-count-to="13">13</div><div class="l" data-i18n="statCrops">crops covered</div></div>
+    <div class="item"><div class="n" data-count-to="3">3</div><div class="l" data-i18n="statStages">damage stages</div></div>
+    <div class="item"><div class="n" data-count-to="30" data-suffix="d">30d</div><div class="l" data-i18n="statWeather">weather history</div></div>
+    <div class="item"><div class="n" data-count-to="2">2</div><div class="l" data-i18n="statLangs">languages</div></div>
+  </div>
+
+  <!-- ============ how it works (interactive stepper) ============ -->
+  <section id="how">
+    <div class="eyebrow" data-i18n="howEyebrow">Three steps, about a minute</div>
+    <div class="stepper" role="tablist" aria-label="How it works">
+      <button class="step" type="button" role="tab" aria-selected="true" data-goto="scout">
+        <span class="k">01</span><span class="t" data-i18n="step1T">Scout</span>
+        <span class="d" data-i18n="step1D">Photograph the damage, pick the crop.</span>
+      </button>
+      <button class="step" type="button" role="tab" aria-selected="false" data-goto="result">
+        <span class="k">02</span><span class="t" data-i18n="step2T">Understand</span>
+        <span class="d" data-i18n="step2D">See what the AI saw and how sure it is.</span>
+      </button>
+      <button class="step" type="button" role="tab" aria-selected="false" data-goto="conditions">
+        <span class="k">03</span><span class="t" data-i18n="step3T">Act</span>
+        <span class="d" data-i18n="step3D">Get the next step and this week's weather risk.</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ 01 scout ============ -->
+  <section id="scout">
     <div class="eyebrow" data-i18n="eb1">01 — Scout</div>
+    <div class="crop-chips" id="cropChips" role="group" aria-label="Crop"></div>
     <div class="crop-pick">
       <label for="cropSelect" data-i18n="cropLabel">Crop</label>
       <select id="cropSelect" aria-label="Crop"></select>
     </div>
-    <div class="scout-card" id="dropzone" tabindex="0" role="button" aria-label="Take or upload a photo">
+    <div class="scout-card glow" id="dropzone" tabindex="0" role="button" aria-label="Take or upload a photo">
       <svg class="scout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
         <path d="M4 8.5V6.2a1 1 0 0 1 1-1h2.3L8.7 3.4a1 1 0 0 1 .8-.4h5a1 1 0 0 1 .8.4l1.4 1.8H19a1 1 0 0 1 1 1v11.6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8.5Z"/>
         <circle cx="12" cy="12.5" r="3.6"/>
@@ -47,20 +132,28 @@
       <p data-i18n="clearShot">Clear shot of the leaf whorl works best</p>
       <input type="file" id="fileInput" accept="image/*" capture="environment" />
       <img id="preview" alt="Selected leaf photo preview" />
+      <div class="scan-progress" id="scanProgress" aria-hidden="true">
+        <div class="track"><div class="bar" id="scanBar"></div></div>
+        <div class="msg" id="scanMsg"></div>
+      </div>
     </div>
     <div class="actions">
-      <button id="scanBtn" data-i18n="scan" disabled>Scan for armyworm</button>
+      <button id="scanBtn" data-i18n="scan" disabled>Check this leaf</button>
       <button class="secondary" id="clearBtn" type="button" data-i18n="clear">Clear</button>
     </div>
-    <div class="loading" id="loading" data-i18n="analyzing">Analyzing image…</div>
+    <div class="loading" id="loading"><span class="thinking" aria-hidden="true"><i></i><i></i><i></i></span> <span data-i18n="analyzing">Analyzing image…</span></div>
   </section>
 
-  <section>
+  <!-- ============ 02 result ============ -->
+  <section id="result">
     <div class="eyebrow" data-i18n="eb2">02 — Result</div>
-    <div class="result-card" id="resultCard" aria-live="polite">
+    <div class="result-card glow" id="resultCard" aria-live="polite">
       <div class="result-header">
         <span class="badge none" id="stageBadge">—</span>
-        <span class="confidence" id="confidenceText"></span>
+        <div class="ring-wrap">
+          <div class="ring-box" id="confidenceRing" aria-hidden="true"></div>
+          <span class="confidence" id="confidenceText"></span>
+        </div>
       </div>
       <div class="result-body">
         <p class="verdict" id="verdict"></p>
@@ -82,6 +175,7 @@
           <p id="affectedArea"></p>
           <div class="label" data-i18n="recAction">Recommended action</div>
           <p id="recommendation"></p>
+          <div id="riskGauge" style="margin:18px 0 6px"></div>
           <div class="label" data-i18n="spreadTitleDb">Spread risk (reports from all farmers nearby)</div>
           <div class="risk-grid">
             <div class="risk-cell"><div class="n" id="riskScore">—</div><div class="l" data-i18n="riskScore">Risk score</div></div>
@@ -99,18 +193,54 @@
     </div>
   </section>
 
+  <!-- ============ 03 conditions ============ -->
+  <section id="conditions">
+    <div class="eyebrow" data-i18n="eb3">03 — Weather behind the pest</div>
+    <div class="result-card glow" style="display:block">
+      <h2 class="climate-head" data-i18n="condTitle">Live field conditions</h2>
+      <p class="risk-basis" data-i18n="condLead">Rain, soil moisture and heat for the last 30 days, straight from NASA POWER. These are the conditions that decide whether a pest outbreak grows or fades.</p>
+      <div class="actions" style="margin-top:14px">
+        <button type="button" id="condBtn" data-i18n="condBtn">Check conditions near me</button>
+      </div>
+      <div id="condBody" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section id="faq" class="faq">
+    <div class="eyebrow" data-i18n="faqTitle">Questions people ask</div>
+    <div data-reveal>
+      <details>
+        <summary data-i18n="faq1Q">Do I need an account?</summary>
+        <p data-i18n="faq1A">No. You can scan a leaf and get the damage stage and confidence straight away. An account (free) adds your scan history, the spread risk near your farm, advisor help and outbreak alerts.</p>
+      </details>
+      <details>
+        <summary data-i18n="faq2Q">How accurate is it?</summary>
+        <p data-i18n="about5">AI results can be wrong. Before spraying, talk to an advisor and follow the product label.</p>
+      </details>
+      <details>
+        <summary data-i18n="faq3Q">What happens to my photo?</summary>
+        <p data-i18n="about1">Photos you scan and questions you type in the chat are sent to Google's Gemini service. On the free plan, Google may use them to improve its products, and people at Google may read them. Do not upload photos that show people or type personal details.</p>
+      </details>
+      <details>
+        <summary data-i18n="faq4Q">Which crops and languages?</summary>
+        <p data-i18n="faq4A">Maize, beans, potato, rice, cassava, banana, sweet potato, sorghum, groundnut, soybean, coffee, tea and vegetables — in English and Kinyarwanda.</p>
+      </details>
+    </div>
+  </section>
+
   <details class="about">
     <summary data-i18n="aboutTitle">About and privacy</summary>
-    <p data-i18n="about1">Photos you scan and questions you type in the chat are sent to Google's Gemini service. On the free plan, Google may use them to improve its products, and people at Google may read them. Do not upload photos that show people or type personal details.</p>
-    <p data-i18n="about2">If you create an account, your scans, farm details and help requests are stored in ArmywormGuard's database so you and the advisors helping you can see them. Advisors see reports from their area; administrators manage the system.</p>
-    <p data-i18n="about5">AI results can be wrong. Before spraying, talk to an advisor and follow the product label.</p>
+    <p data-i18n="about2">If you create an account, your scans, farm details and help requests are stored in Umurima's database so you and the advisors helping you can see them. Advisors see reports from their area; administrators manage the system.</p>
+    <p data-i18n="about5b">Weather figures come from NASA POWER (power.larc.nasa.gov), used under CC BY 4.0.</p>
   </details>
 
-  <footer data-i18n="footer">ArmywormGuard — built for fall armyworm scouting in maize fields.</footer>
+  <footer data-i18n="footer">Umurima — built for fall armyworm scouting in maize fields.</footer>
 </div>
 
 <script defer src="js/i18n.js"></script>
 <script defer src="js/ui.js"></script>
+<script defer src="js/motion.js"></script>
 <script defer src="js/store.js"></script>
 <script defer src="js/scanner.js"></script>
 <script defer src="js/result.js"></script>

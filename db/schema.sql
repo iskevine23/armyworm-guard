@@ -1,4 +1,4 @@
--- ArmywormGuard database schema (PostgreSQL 13+; works on Neon, Supabase, Vercel Postgres, RDS, local)
+-- Umurima database schema (PostgreSQL 13+; works on Neon, Supabase, Vercel Postgres, RDS, local)
 -- Safe to run more than once: every statement is idempotent.
 -- Run with:  npm run migrate      (or it runs automatically on the first API call)
 

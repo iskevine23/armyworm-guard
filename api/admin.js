@@ -301,10 +301,10 @@ export default api(
       fn: async ({ body, user, ip }) => {
         const to = emailField(body.to || user.email);
         const { text, html } = renderEmail({
-          heading: "ArmywormGuard test email",
-          lines: ["If you can read this, email delivery from ArmywormGuard works.", `Sent by ${user.full_name} at ${new Date().toUTCString()}.`],
+          heading: "Umurima test email",
+          lines: ["If you can read this, email delivery from Umurima works.", `Sent by ${user.full_name} at ${new Date().toUTCString()}.`],
         });
-        const result = await sendEmail({ to, subject: "ArmywormGuard test email", text, html, template: "test", respectPreference: false });
+        const result = await sendEmail({ to, subject: "Umurima test email", text, html, template: "test", respectPreference: false });
         await logActivity(user.id, "email_test", "email", null, { to, result }, ip);
         if (!result.sent) {
           const last = await one("SELECT error FROM email_log WHERE to_email=$1 AND template='test' ORDER BY id DESC LIMIT 1", [to]);

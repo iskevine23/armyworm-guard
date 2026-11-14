@@ -1,6 +1,6 @@
 {
-  "name": "ArmywormGuard",
-  "short_name": "ArmywormGuard",
+  "name": "Umurima",
+  "short_name": "Umurima",
   "description": "Check maize leaves for fall armyworm (nkongwa), see the spread risk, and find advisors and agro-dealers nearby.",
   "start_url": "./",
   "scope": "./",

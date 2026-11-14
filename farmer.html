@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#1C2818" />
 <meta name="robots" content="noindex" />
-<title>My farm dashboard — ArmywormGuard</title>
+<title>My farm dashboard — Umurima</title>
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" href="icons/icon-192.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,10 +15,11 @@
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+<div id="scrollProgress" aria-hidden="true"></div>
 <div class="field-texture"></div>
 <div class="wrap">
-  <header>
-    <a class="wordmark" href="index.html">Armyworm<span>Guard</span></a>
+  <header class="site-header">
+    <a class="wordmark" href="index.html"><svg class="wm-leaf" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20C4 11 11 4 20 4c0 9-7 16-16 16Z"/><path d="M4 20C8 16 12 12 17 8" fill="none"/></svg>Umurima</a>
     <div class="header-right">
       <select id="langSelect" aria-label="Language">
         <option value="en">English</option>
@@ -47,6 +48,17 @@
     </div>
     <div id="warnings"></div>
     <div class="stats" id="farmerStats"></div>
+    <div class="result-card glow" id="trendCard" style="display:block;margin-top:14px" data-reveal>
+      <div class="row-top">
+        <div>
+          <h2 class="sub" style="margin:0" data-i18n="trendTitle">Risk trend</h2>
+          <div class="risk-basis" data-i18n="trendLead">Your last scans, oldest to newest. A rising line means the pressure is building.</div>
+        </div>
+        <span class="pill-status info" id="trendStage">—</span>
+      </div>
+      <div id="trendGauge" style="margin:10px 0 0"></div>
+      <div id="trendSpark" style="margin-top:6px"></div>
+    </div>
     <h2 class="sub" data-i18n="fieldConditions">Field conditions</h2>
     <div id="climateCard" class="climate"></div>
     <div class="risk-basis" id="climateSrc"></div>
@@ -88,7 +100,10 @@
       <div class="result-card" id="resultCard" aria-live="polite">
         <div class="result-header">
           <span class="badge none" id="stageBadge">—</span>
-          <span class="confidence" id="confidenceText"></span>
+          <div class="ring-wrap">
+            <div class="ring-box" id="confidenceRing" aria-hidden="true"></div>
+            <span class="confidence" id="confidenceText"></span>
+          </div>
         </div>
         <div class="result-body">
           <p class="verdict" id="verdict"></p>
@@ -97,6 +112,7 @@
             <p id="affectedArea"></p>
             <div class="label" data-i18n="recAction">Recommended action</div>
             <p id="recommendation"></p>
+            <div id="riskGauge" style="margin:16px 0 4px"></div>
             <div class="label" data-i18n="spreadTitleDb">Spread risk (reports from all farmers nearby)</div>
             <div class="risk-grid">
               <div class="risk-cell"><div class="n" id="riskScore">—</div><div class="l" data-i18n="riskScore">Risk score</div></div>
@@ -130,6 +146,7 @@
     <h1 data-i18n="historyTitle">Scan history</h1>
     <p class="lede" data-i18n="historyIntroDb">Every scan you make while logged in is saved to your account, on any phone.</p>
     <div class="actions"><a class="btn secondary" href="/api/scans?action=export" data-i18n="h_csv">Download CSV</a></div>
+    <div class="crop-chips" id="historyChips" role="group" aria-label="Filter by crop"></div>
     <div id="historyList" class="list"></div>
     <div class="actions"><button type="button" class="secondary" id="historyMore" style="display:none" data-i18n="loadMore">Load more</button></div>
   </div>
@@ -219,12 +236,13 @@
   </div>
 
   <datalist id="districts"></datalist>
-  <footer data-i18n="footer">ArmywormGuard — built for fall armyworm scouting in maize fields.</footer>
+  <footer data-i18n="footer">Umurima — built for fall armyworm scouting in maize fields.</footer>
 </div>
 
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script defer src="js/i18n.js"></script>
 <script defer src="js/ui.js"></script>
+<script defer src="js/motion.js"></script>
 <script defer src="js/store.js"></script>
 <script defer src="js/districts.js"></script>
 <script defer src="js/scanner.js"></script>
