@@ -8,6 +8,7 @@ import { one } from "../lib/db.js";
 import { getUser } from "../lib/auth.js";
 import { renderEmail, sendEmail } from "../lib/mailer.js";
 import { rateLimit, logActivity } from "../lib/system.js";
+import { cropLabel } from "../lib/crops.js";
 
 const RW = {
   stage: { none: "nta cyangiritse", early: "byangiritse gake", moderate: "byangiritse mu rugero", severe: "byangiritse cyane" },
@@ -15,18 +16,25 @@ const RW = {
   fallback: "Genzura umurima wawe, ubaze umukozi w'ubuhinzi (agronome) wo mu murenge wawe.",
 };
 
-function buildMessage({ stage, riskLevel, recommendation, lang }) {
+function buildMessage({ crop, pest, stage, riskLevel, recommendation, lang }) {
+  const cropEn = cropLabel(crop, "en");
+  const cropRw = cropLabel(crop, "rw");
+  const cause = pest && pest !== "none" ? pest : null;
   if (lang === "rw") {
     return (
       `ArmywormGuard — ubutumwa bw'iburira\n` +
-      `Ibyangijwe na nkongwa (Fall Armyworm): ${RW.stage[stage] || "bitazwi"}\n` +
+      `Igihingwa: ${cropRw}\n` +
+      (cause ? `Icyabonetse: ${cause}\n` : "") +
+      `Uko cyangiritse: ${RW.stage[stage] || "bitazwi"}\n` +
       `Ibyago byo gukwirakwira hafi aho: ${RW.risk[riskLevel] || "bitazwi"}\n` +
       `Icyo wakora: ${recommendation || RW.fallback}`
     );
   }
   return (
     `ArmywormGuard alert\n` +
-    `Fall armyworm damage: ${(stage || "unknown").toUpperCase()}\n` +
+    `Crop: ${cropEn}\n` +
+    (cause ? `Suspected cause: ${cause}\n` : "") +
+    `Damage: ${(stage || "unknown").toUpperCase()}\n` +
     `Spread risk nearby: ${(riskLevel || "unknown").toUpperCase()}\n` +
     `What to do: ${recommendation || "Scout your field and consult your local agronomy extension officer."}`
   );
@@ -41,15 +49,15 @@ export default api(
         const scan = await one("SELECT * FROM scans WHERE id=$1 AND user_id=$2", [idField(body.scanId, "scan"), user.id]);
         if (!scan) throw new HttpError(404, "Scan not found in your history");
         const lang = body.lang === "rw" ? "rw" : "en";
-        const text = buildMessage({ stage: scan.stage, riskLevel: scan.risk_level, recommendation: scan.recommendation, lang });
+        const text = buildMessage({ crop: scan.crop, pest: scan.pest_label, stage: scan.stage, riskLevel: scan.risk_level, recommendation: scan.recommendation, lang });
 
         if (body.channel === "email") {
           const r = renderEmail({
             heading: lang === "rw" ? "Ibyavuye mu isuzuma" : "Your ArmywormGuard scan result",
             lines: text.split("\n").slice(1),
-            details: [["Scan", `#${scan.id}`], ["Time", new Date(scan.created_at).toUTCString()]],
+            details: [["Crop", cropLabel(scan.crop, lang)], ["Suspected cause", scan.pest_label && scan.pest_label !== "none" ? scan.pest_label : "not identified"], ["Scan", `#${scan.id}`], ["Time", new Date(scan.created_at).toUTCString()]],
           });
-          const res = await sendEmail({ to: user.email, userId: user.id, subject: lang === "rw" ? "ArmywormGuard: ibyavuye mu isuzuma" : `ArmywormGuard: ${scan.stage} fall armyworm damage`, text, html: r.html, template: "scan_result", relatedType: "scan", relatedId: scan.id, respectPreference: false });
+          const res = await sendEmail({ to: user.email, userId: user.id, subject: lang === "rw" ? `ArmywormGuard: ${cropLabel(scan.crop, "rw")} — ibyavuye mu isuzuma` : `ArmywormGuard: ${cropLabel(scan.crop, "en")} scan — ${scan.stage} damage`, text, html: r.html, template: "scan_result", relatedType: "scan", relatedId: scan.id, respectPreference: false });
           if (!res.sent) throw new HttpError(502, "The email could not be sent right now. The administrator has been shown the error.");
           await logActivity(user.id, "alert_email", "scan", scan.id, null, ip);
           return { sent: true, channel: "email", to: user.email };

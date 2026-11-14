@@ -21,25 +21,37 @@ function showResultError(msg) {
   ['lockedBox', 'fullBox'].forEach((id) => { if ($(id)) $(id).style.display = 'none'; });
 }
 
-function renderHeader(stage, confidence, pestDetected) {
+function cropName(id) {
+  const c = (typeof CROP_CHOICES !== 'undefined' ? CROP_CHOICES : []).find((x) => x.id === id);
+  return c ? (lang === 'rw' ? c.rw : c.en) : '';
+}
+
+function renderHeader(stage, confidence, pestDetected, pest, crop) {
   $('stageBadge').textContent = tl('stage_', stage);
   $('stageBadge').className = 'badge ' + stage;
   $('confidenceText').textContent = t('confidence') + ' ' + Math.round((confidence || 0) * 100) + '%';
-  $('verdict').textContent = pestDetected ? t('pestYes') : t('pestNo');
+  const cropLabel = cropName(crop);
+  const cause = pestDetection(pestDetected, pest);
+  $('verdict').textContent = [cropLabel, pestDetected ? t('pestYes') : t('pestNo'), cause].filter(Boolean).join(' · ');
   $('errorText').textContent = '';
   $('resultCard').style.display = 'block';
 }
 
+// "Suspected cause: bean rust" — only when the AI actually named something
+function pestDetection(pestDetected, pest) {
+  return pestDetected && pest && pest !== 'none' ? t('suspectedCause') + ': ' + pest : '';
+}
+
 function renderBasic(d) {
   lastBasic = d;
-  renderHeader(d.stage, d.confidence, d.pestDetected);
+  renderHeader(d.stage, d.confidence, d.pestDetected, d.pest, d.crop);
   if ($('fullBox')) $('fullBox').style.display = 'none';
   if ($('lockedBox')) $('lockedBox').style.display = 'block';
 }
 
 function renderFull(scan, spread, outbreak) {
   lastScan = scan; lastSpread = spread; lastOutbreak = outbreak;
-  renderHeader(scan.stage, scan.confidence, scan.pestDetected);
+  renderHeader(scan.stage, scan.confidence, scan.pestDetected, scan.pest, scan.crop);
   if ($('lockedBox')) $('lockedBox').style.display = 'none';
   $('fullBox').style.display = 'block';
   $('affectedArea').textContent = scan.affectedArea || '—';

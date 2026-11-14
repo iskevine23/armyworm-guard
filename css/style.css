@@ -350,3 +350,13 @@
 
   button.small{ padding:6px 12px; font-size:0.78rem; margin-bottom:10px; }
   .chart svg{ max-height:220px; }
+
+/* ---------------- crop picker and field conditions (NASA POWER) ---------------- */
+.crop-pick{ display:flex; align-items:center; gap:10px; margin:0 0 10px; flex-wrap:wrap; }
+.crop-pick label{ font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--husk-dim); font-family:"IBM Plex Mono", monospace; }
+.crop-pick select{ flex:1; min-width:160px; max-width:340px; background:rgba(28,40,24,0.6); color:var(--husk); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; font-size:0.95rem; }
+.crop-checks{ display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:6px; margin-top:6px; }
+.crop-checks .check{ background:rgba(28,40,24,0.5); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; }
+.climate-head{ font-size:0.95rem; margin:2px 0 6px; }
+.climate .stats{ margin:0 0 8px; }
+.climate .callout{ margin:8px 0; }

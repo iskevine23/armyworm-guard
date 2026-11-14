@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS farmer_profiles (
   farm_size_ha NUMERIC(8,2),
   lat         DOUBLE PRECISION,
   lng         DOUBLE PRECISION,
+  primary_crops TEXT[] NOT NULL DEFAULT '{maize}',   -- crops this farmer grows (ids from lib/crops.js)
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -47,6 +48,8 @@ CREATE TABLE IF NOT EXISTS scans (
   id              BIGSERIAL PRIMARY KEY,
   user_id         BIGINT REFERENCES users(id) ON DELETE CASCADE,  -- NULL = anonymous public scan
   claim_token_hash TEXT,                                          -- lets a visitor attach the scan after logging in
+  crop            TEXT NOT NULL DEFAULT 'maize',                   -- crop id from lib/crops.js
+  pest_label      TEXT,                                           -- what the AI blamed, e.g. "bean rust"
   pest_detected   BOOLEAN NOT NULL DEFAULT FALSE,
   stage           TEXT NOT NULL DEFAULT 'none' CHECK (stage IN ('none','early','moderate','severe')),
   confidence      REAL,
@@ -68,6 +71,7 @@ CREATE TABLE IF NOT EXISTS scans (
   claimed_at      TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS scans_user_idx ON scans (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS scans_crop_idx ON scans (crop, created_at DESC);
 CREATE INDEX IF NOT EXISTS scans_outbreak_idx ON scans (created_at) WHERE qualifies_outbreak;
 CREATE INDEX IF NOT EXISTS scans_anon_idx ON scans (created_at) WHERE user_id IS NULL;
 
@@ -106,6 +110,7 @@ CREATE TABLE IF NOT EXISTS outbreak_alerts (
   id              BIGSERIAL PRIMARY KEY,
   status          TEXT NOT NULL DEFAULT 'suspected'
                   CHECK (status IN ('suspected','investigating','confirmed','resolved','false_alarm')),
+  crop            TEXT NOT NULL DEFAULT 'maize',   -- alerts never mix crops
   center_lat      DOUBLE PRECISION NOT NULL,
   center_lng      DOUBLE PRECISION NOT NULL,
   radius_km       REAL NOT NULL,
@@ -212,6 +217,22 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   window_start TIMESTAMPTZ NOT NULL,
   count        INTEGER NOT NULL
 );
+
+-- Cached NASA POWER climate summaries: one row per ~1 km cell, crop and day, so a farmer's page
+-- never waits on a satellite/weather API.
+CREATE TABLE IF NOT EXISTS climate_cache (
+  key        TEXT PRIMARY KEY,          -- "lat,lng,crop,YYYY-MM-DD"
+  payload    JSONB NOT NULL,
+  fetched_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS climate_cache_fetched_idx ON climate_cache (fetched_at DESC);
+
+-- Upgrades for databases created before these columns existed. Safe to run every time.
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS crop TEXT NOT NULL DEFAULT 'maize';
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS pest_label TEXT;
+ALTER TABLE outbreak_alerts ADD COLUMN IF NOT EXISTS crop TEXT NOT NULL DEFAULT 'maize';
+ALTER TABLE farmer_profiles ADD COLUMN IF NOT EXISTS primary_crops TEXT[] NOT NULL DEFAULT '{maize}';
+CREATE INDEX IF NOT EXISTS scans_crop_idx ON scans (crop, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS schema_meta (
   id       INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),

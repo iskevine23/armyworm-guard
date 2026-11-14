@@ -8,12 +8,15 @@ import { one, many, query, tx } from "../lib/db.js";
 import { getUser, publicUser, USER_COLUMNS } from "../lib/auth.js";
 import { logActivity } from "../lib/system.js";
 import { districtList } from "../lib/format.js";
+import { cropList } from "../lib/crops.js";
 
 async function profile(user) {
   const out = { user: publicUser(user) };
   if (user.role === "farmer") {
-    const f = await one("SELECT farm_name, village, farm_size_ha, lat, lng FROM farmer_profiles WHERE user_id=$1", [user.id]);
-    out.farm = f ? { farmName: f.farm_name, village: f.village, farmSizeHa: f.farm_size_ha, lat: f.lat, lng: f.lng } : {};
+    const f = await one("SELECT farm_name, village, farm_size_ha, lat, lng, primary_crops FROM farmer_profiles WHERE user_id=$1", [user.id]);
+    out.farm = f
+      ? { farmName: f.farm_name, village: f.village, farmSizeHa: f.farm_size_ha, lat: f.lat, lng: f.lng, primaryCrops: f.primary_crops || ["maize"] }
+      : { primaryCrops: ["maize"] };
   }
   if (user.role === "advisor") {
     const a = await one("SELECT organization, title, coverage_districts, lat, lng FROM advisor_profiles WHERE user_id=$1", [user.id]);
@@ -51,10 +54,13 @@ export default api(
             const f = body.farm;
             const { lat, lng } = coords(f);
             const size = num(f.farmSizeHa, { min: 0, max: 100000, name: "Farm size" });
+            const crops = f.primaryCrops === undefined ? null : cropList(f.primaryCrops);
             await c.query(
-              `INSERT INTO farmer_profiles (user_id, farm_name, village, farm_size_ha, lat, lng, updated_at) VALUES ($1,$2,$3,$4,$5,$6, now())
-               ON CONFLICT (user_id) DO UPDATE SET farm_name=$2, village=$3, farm_size_ha=$4, lat=$5, lng=$6, updated_at=now()`,
-              [user.id, str(f.farmName, 80, { name: "Farm name" }) || null, str(f.village, 80, { name: "Village" }) || null, size, lat, lng]
+              `INSERT INTO farmer_profiles (user_id, farm_name, village, farm_size_ha, lat, lng, primary_crops, updated_at)
+               VALUES ($1,$2,$3,$4,$5,$6, COALESCE($7::text[], '{maize}'::text[]), now())
+               ON CONFLICT (user_id) DO UPDATE SET farm_name=$2, village=$3, farm_size_ha=$4, lat=$5, lng=$6,
+                 primary_crops=COALESCE($7::text[], farmer_profiles.primary_crops), updated_at=now()`,
+              [user.id, str(f.farmName, 80, { name: "Farm name" }) || null, str(f.village, 80, { name: "Village" }) || null, size, lat, lng, crops]
             );
           }
           if (user.role === "advisor" && body.advisor) {

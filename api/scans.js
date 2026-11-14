@@ -16,6 +16,7 @@ import { getSettings, rateLimit, logActivity, housekeeping } from "../lib/system
 import { scanScope } from "../lib/access.js";
 import { csvResponse } from "../lib/csv.js";
 import { formatScan } from "../lib/format.js";
+import { getCrop, normaliseCropId } from "../lib/crops.js";
 
 const LOC_SOURCES = ["gps", "farm", "default", "none"];
 
@@ -105,32 +106,35 @@ export default api(
             "You have reached the free scan limit for today. Create a free account to keep scanning.");
         }
         const lang = body.lang === "rw" ? "rw" : "en";
-        const { result, model } = await detectImage({ image: body.image, mediaType: body.mediaType, lang });
+        const crop = getCrop(body.crop).id; // unknown or missing crop falls back to maize
+        const { result, model } = await detectImage({ image: body.image, mediaType: body.mediaType, lang, crop });
         const thumb = validThumb(body.thumb);
 
         if (!user) {
           const claim = randomToken(24);
           const row = await one(
-            `INSERT INTO scans (user_id, claim_token_hash, pest_detected, stage, confidence, affected_area, recommendation, thumb, lang, model, loc_source)
-             VALUES (NULL,$1,$2,$3,$4,$5,$6,$7,$8,$9,'none') RETURNING id, created_at`,
-            [sha256(claim), result.pestDetected, result.stage, result.confidence, result.affectedArea, result.recommendation, thumb, lang, model]
+            `INSERT INTO scans (user_id, claim_token_hash, crop, pest_label, pest_detected, stage, confidence, affected_area, recommendation, thumb, lang, model, loc_source)
+             VALUES (NULL,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'none') RETURNING id, created_at`,
+            [sha256(claim), crop, result.pest, result.pestDetected, result.stage, result.confidence, result.affectedArea, result.recommendation, thumb, lang, model]
           );
           // BASIC result only. Details, spread risk and help need an account.
           return {
             basic: true,
+            crop,
             scanId: row.id,
             claimToken: claim,
             createdAt: row.created_at,
             pestDetected: result.pestDetected,
+            pest: result.pest,
             stage: result.stage,
             confidence: result.confidence,
           };
         }
 
         const row = await one(
-          `INSERT INTO scans (user_id, pest_detected, stage, confidence, affected_area, recommendation, thumb, lang, model)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-          [user.id, result.pestDetected, result.stage, result.confidence, result.affectedArea, result.recommendation, thumb, lang, model]
+          `INSERT INTO scans (user_id, crop, pest_label, pest_detected, stage, confidence, affected_area, recommendation, thumb, lang, model)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+          [user.id, crop, result.pest, result.pestDetected, result.stage, result.confidence, result.affectedArea, result.recommendation, thumb, lang, model]
         );
         const out = await finalise(req, user, row.id, body);
         await logActivity(user.id, "scan", "scan", row.id, { stage: result.stage, outbreak: out.outbreak.action }, ip);
@@ -165,6 +169,11 @@ export default api(
         const add = (sql, v) => { params.push(v); where.push(sql.replace("?", "$" + params.length)); };
         if (q.stage) add("s.stage = ?", oneOf(q.stage, ["none", "early", "moderate", "severe"], { name: "stage" }));
         if (q.pest === "1") where.push("s.pest_detected");
+        if (q.crop) {
+          const crop = normaliseCropId(q.crop);
+          if (!crop) throw new HttpError(400, "Unknown crop. Call /api/climate?action=crops for the list.");
+          add("s.crop = ?", crop);
+        }
         if (q.district) add("lower(s.district) = lower(?)", String(q.district).slice(0, 60));
         if (q.from) add("s.created_at >= ?::date", String(q.from).slice(0, 10));
         if (q.to) add("s.created_at < ?::date + 1", String(q.to).slice(0, 10));
@@ -226,9 +235,9 @@ export default api(
             WHERE ${scope.sql} ORDER BY s.created_at DESC LIMIT 20000`,
           scope.params
         );
-        const head = ["id", "time", "farmer", "phone", "pest_detected", "damage_stage", "confidence", "spread_risk_level", "spread_risk_score",
+        const head = ["id", "time", "farmer", "phone", "crop", "suspected_cause", "pest_detected", "damage_stage", "confidence", "spread_risk_level", "spread_risk_score",
           "what_ai_saw", "suggested_action", "district", "sector", "latitude", "longitude", "location_source", "counts_for_outbreak"];
-        const data = rows.map((s) => [s.id, s.created_at, s.farmer_name, s.farmer_phone, s.pest_detected, s.stage, s.confidence, s.risk_level, s.risk_score,
+        const data = rows.map((s) => [s.id, s.created_at, s.farmer_name, s.farmer_phone, s.crop, s.pest_label, s.pest_detected, s.stage, s.confidence, s.risk_level, s.risk_score,
           s.affected_area, s.recommendation, s.district, s.sector, s.lat, s.lng, s.loc_source, s.qualifies_outbreak]);
         return csvResponse("armywormguard-scans.csv", head, data);
       },
