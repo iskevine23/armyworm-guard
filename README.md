@@ -117,6 +117,42 @@ photo and the farmer say what is actually there. Higher-resolution vegetation in
 are the natural next layer; the free tier is 10,000 processing units a month at roughly 34 PU per
 field request, and `lib/climate.js` is already the place to add it.
 
+## Demo deployment (no login, separate database)
+
+For a review, a hackathon submission or a public demo you can run a **second** Vercel project that
+needs no login, while production stays exactly as it is. The demo is safe because it is isolated,
+not because of clever filtering:
+
+- its own Vercel project (`armyworm-guard-demo`) and **its own database** — nothing a visitor does
+  can reach a real farmer's row
+- `DEMO_MODE=1` only on that project
+- authentication is bypassed: every request acts as a seeded persona, chosen with the
+  `demo_persona` cookie and the switcher in the header (farmer · advisor · admin)
+- **authorisation is not bypassed**: a farmer persona gets 403 on the admin and advisor APIs
+- `login`, `register`, `forgot` and `reset` answer 403, so no real account can be created
+- email is recorded in `email_log` as `skipped` — the demo can never use your Gmail/SMTP sender
+- the database **seeds itself on first request** (`lib/demo.js`): five people, farms in Musanze and
+  Burera, thirteen scans across maize/beans/potato, a confirmed outbreak, two help conversations and
+  notifications. `settings.demo_seeded` makes it happen once.
+
+Set it up with:
+
+```
+git push                      # merge the code first
+vercel project create         # or the dashboard: New Project > same repo > name armyworm-guard-demo
+# Environment variables on the DEMO project only:
+DEMO_MODE=1
+DATABASE_URL=<a separate Postgres/Supabase/Neon database>
+DATABASE_SSL=no-verify        # only if your provider needs it
+JWT_SECRET=<random>
+GEMINI_API_KEY=<same key>
+APP_URL=https://armyworm-guard-demo.vercel.app
+# deliberately NOT set: GMAIL_*, SMTP_*
+```
+
+`GET /api/demo` reports the current persona, and `/api/demo?action=switch&persona=advisor&next=advisor.html`
+switches it. Both return 404 when `DEMO_MODE` is not set, so the endpoint is inert in production.
+
 ## Project layout
 
 ```
@@ -138,17 +174,19 @@ api/me.js             own profile, notifications
 api/admin.js          users, settings, stats, health, emails, activity, reports
 api/chat.js           assistant (logged in)       api/alert.js  send a result to own email/Telegram
 api/climate.js        NASA POWER field conditions (rain, soil, heat, disease risk)
+api/demo.js           demo deployment: status and the no-login role switcher
 api/predict-spread.js unchanged public calculation
 lib/                  database, auth, mailer, outbreak engine, access rules, Gemini, validation
 lib/crops.js          crop catalog: names, pests, water need, heat limit (add a crop here)
 lib/climate.js        NASA POWER client, climatology maths, caching, advisories
+lib/demo.js           DEMO_MODE: personas, self-seeding sample data, route policy
 db/schema.sql         all tables (created automatically on first request, or `npm run migrate`)
 db/migrations.js      incremental migrations for databases that already exist (append only)
 scripts/              dev server, migrate, create-admin
-tests/e2e.mjs         47 end-to-end checks against real Postgres + a real SMTP server
+tests/e2e.mjs         56 end-to-end checks against real Postgres + a real SMTP server
 ```
 
-Vercel's Hobby plan allows 12 functions; this uses 11.
+Vercel's Hobby plan allows 12 functions; this uses 12 (api/demo.js included).
 
 ## Deploy on Vercel (step by step)
 

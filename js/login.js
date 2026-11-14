@@ -31,6 +31,9 @@ $('forgotLink').addEventListener('click', () => { $('fEmail').value = $('lEmail'
 
 function msg(id, text, ok) { $(id).textContent = text || ''; $(id).className = 'form-msg' + (ok ? ' ok' : text ? ' bad' : ''); }
 
+// In demo mode there is nothing to log in to: go straight to the persona's dashboard.
+loadSession().then(() => { if (DEMO.mode) location.replace(dashboardFor(DEMO.persona)); });
+
 async function afterAuth(user) {
   // a farmer who scanned before logging in goes straight to the scan so it can be saved
   if (user.role === 'farmer' && pendingScanExists()) return location.replace('farmer.html#scan');
