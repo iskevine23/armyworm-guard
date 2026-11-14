@@ -18,7 +18,7 @@ import { SMTPServer } from "smtp-server";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DB = process.env.TEST_DATABASE_URL;
 if (!DB) { console.error("Set TEST_DATABASE_URL (a throwaway database; it is wiped)."); process.exit(1); }
-const PORT = 3100, SMTP_PORT = 2526, GEM_PORT = 4012;
+const PORT = 3100, SMTP_PORT = 2526, GEM_PORT = 4012, CLIM_PORT = 4013;
 const BASE = `http://127.0.0.1:${PORT}`;
 
 /* ---------- SMTP sink ---------- */
@@ -54,8 +54,12 @@ const gemini = http.createServer((req, res) => {
     if (img) {
       const label = Buffer.from(img.inline_data.data, "base64").toString("utf8");
       const stage = ["severe", "moderate", "early"].find((s) => label.startsWith(s)) || "none";
+      const prompt = parts.find((p) => p.text)?.text || "";
+      const pest = prompt.includes("Beans (Ibishyimbo)") ? "bean rust"
+        : prompt.includes("Coffee (Ikawa)") ? "coffee leaf rust"
+        : "fall armyworm";
       text = JSON.stringify({
-        pestDetected: stage !== "none", confidence: stage === "none" ? 0.9 : 0.85, stage,
+        pestDetected: stage !== "none", pest: stage === "none" ? "none" : pest, confidence: stage === "none" ? 0.9 : 0.85, stage,
         affectedArea: stage === "none" ? "healthy leaf" : `${stage} window-pane damage in the whorl`,
         recommendation: stage === "none" ? "keep scouting weekly" : "hand-pick larvae and talk to your advisor",
       });
@@ -65,6 +69,38 @@ const gemini = http.createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }));
   });
+});
+
+/* ---------- NASA POWER stand-in: a dry field near Musanze, a soaked field further south ---------- */
+const climate = http.createServer((req, res) => {
+  const u = new URL(req.url, "http://127.0.0.1");
+  const lat = Number(u.searchParams.get("latitude"));
+  const start = u.searchParams.get("start");
+  const end = u.searchParams.get("end");
+  const parse = (s) => new Date(Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8)));
+  const endD = parse(end);
+  const recent = new Date(endD); recent.setUTCDate(recent.getUTCDate() - 29);
+  const days = [];
+  for (let d = parse(start); d <= endD; d.setUTCDate(d.getUTCDate() + 1)) days.push(new Date(d));
+  const wet = lat < -2;                       // south of Musanze: 75 mm in three days
+  const p = { PRECTOTCORR: {}, T2M: {}, T2M_MAX: {}, T2M_MIN: {}, RH2M: {}, GWETROOT: {}, ALLSKY_SFC_SW_DWN: {} };
+  days.forEach((d, i) => {
+    const key = d.toISOString().slice(0, 10).replace(/-/g, "");
+    const isRecent = d >= recent;
+    const daysFromEnd = Math.round((endD - d) / 86400000);
+    let rain;
+    if (wet) rain = daysFromEnd <= 2 ? 25 : isRecent ? 6 : 3;
+    else rain = isRecent ? 0.2 : 3;
+    p.PRECTOTCORR[key] = rain;
+    p.T2M[key] = wet ? 28 : 21;
+    p.T2M_MAX[key] = wet ? 36 : 28;
+    p.T2M_MIN[key] = wet ? 20 : 14;
+    p.RH2M[key] = wet ? 90 : 70;
+    p.GWETROOT[key] = wet ? 0.95 : isRecent ? 0.25 : 0.4;
+    p.ALLSKY_SFC_SW_DWN[key] = 20;
+  });
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify({ properties: { parameter: p } }));
 });
 
 /* ---------- HTTP client with a cookie jar per user ---------- */
@@ -105,11 +141,13 @@ const pool = new pg.Pool({ connectionString: DB });
 await pool.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
 await new Promise((r) => smtp.listen(SMTP_PORT, "127.0.0.1", r));
 await new Promise((r) => gemini.listen(GEM_PORT, "127.0.0.1", r));
+await new Promise((r) => climate.listen(CLIM_PORT, "127.0.0.1", r));
 const server = spawn(process.execPath, [path.join(root, "scripts/dev-server.mjs")], {
   cwd: root,
   env: {
     ...process.env, PORT: String(PORT), DATABASE_URL: DB, JWT_SECRET: "test-secret-0123456789-0123456789-abcdef",
     GEMINI_API_KEY: "test", GEMINI_API_BASE: `http://127.0.0.1:${GEM_PORT}`, GEMINI_MODELS: "gemini-test",
+    CLIMATE_API_BASE: `http://127.0.0.1:${CLIM_PORT}`,
     SMTP_HOST: "127.0.0.1", SMTP_PORT: String(SMTP_PORT), SMTP_SECURE: "false", SMTP_IGNORE_TLS: "true", SMTP_USER: "", SMTP_PASS: "",
     EMAIL_FROM: "ArmywormGuard <alerts@armywormguard.test>", APP_URL: BASE, BOOTSTRAP_ADMIN_EMAIL: "boss@test.rw",
     GMAIL_USER: "", GMAIL_APP_PASSWORD: "",
@@ -390,6 +428,72 @@ try {
     expect(await admin.post("/api/admin?action=user-update&id=" + f3id, { role: "farmer" }), 200);
   });
 
+  console.log("Other crops and NASA POWER field conditions");
+  await step("the public crop list covers the main Rwandan crops", async () => {
+    const d = expect(await anon.get("/api/climate?action=crops"), 200);
+    const ids = d.crops.map((c) => c.id);
+    for (const id of ["maize", "beans", "cassava", "banana", "rice", "potato", "coffee"]) assert.ok(ids.includes(id), "missing crop " + id);
+    assert.equal(d.crops.find((c) => c.id === "beans").rw, "Ibishyimbo");
+    assert.equal(d.defaultCrop, "maize");
+  });
+  await step("a bean scan is saved with its crop and the pest the AI named", async () => {
+    const d = expect(await f1.post("/api/scans", { image: img("moderate"), crop: "beans", locSource: "gps", lat: X.lat, lng: X.lng }), 200);
+    assert.equal(d.scan.crop, "beans");
+    assert.equal(d.scan.pest, "bean rust");
+    const list = expect(await f1.get("/api/scans?action=list&crop=beans"), 200);
+    assert.ok(list.scans.length >= 1 && list.scans.every((x) => x.crop === "beans"));
+  });
+  await step("an unknown crop is refused, an omitted crop falls back to maize", async () => {
+    expect(await f1.get("/api/scans?action=list&crop=bananas"), 400);
+    const d = expect(await f1.post("/api/scans", { image: img("early"), locSource: "gps", lat: X.lat, lng: X.lng }), 200);
+    assert.equal(d.scan.crop, "maize");
+  });
+  await step("field conditions are private and need a location", async () => {
+    expect(await anon.get("/api/climate?action=field"), 401);
+    const landless = new Client("landless");
+    expect(await landless.post("/api/auth?action=register", { fullName: "No Farm", email: "nofarm@test.rw", password: "FarmPass123" }), 201);
+    expect(await landless.get("/api/climate?action=field"), 400, "no farm saved yet");
+  });
+  await step("a dry field raises a drought warning from NASA POWER data", async () => {
+    const d = expect(await f1.get("/api/climate?action=field&crop=maize&fresh=1"), 200);
+    assert.equal(d.source, "NASA POWER");
+    assert.ok(/NASA POWER/.test(d.attribution), "NASA attribution is required");
+    assert.equal(d.crop.id, "maize");
+    assert.ok(d.rain.last30mm < 10, "30-day rain " + d.rain.last30mm);
+    assert.ok(d.rain.anomalyPct < -50, "anomaly " + d.rain.anomalyPct);
+    assert.ok(d.flags.includes("drought"), "flags: " + d.flags.join(","));
+    assert.ok(d.drySpellDays >= 20, "dry spell " + d.drySpellDays);
+    assert.ok(d.waterNeed30mm > 0);
+    assert.equal(d.cached, false);
+  });
+  await step("the second visit is served from the cache, not NASA", async () => {
+    const d = expect(await f1.get("/api/climate?action=field&crop=maize"), 200);
+    assert.equal(d.cached, true);
+    assert.ok(d.rain.last30mm < 10);
+  });
+  await step("a soaked field raises flood, heat and disease warnings", async () => {
+    const d = expect(await f1.get("/api/climate?action=field&crop=potato&lat=-2.5&lng=29.2&fresh=1"), 200);
+    assert.equal(d.crop.id, "potato");
+    assert.ok(d.heavyRain3dMm >= 50, "3-day rain " + d.heavyRain3dMm);
+    for (const flag of ["flood", "disease", "heat"]) assert.ok(d.flags.includes(flag), "missing " + flag + " in " + d.flags.join(","));
+    assert.equal(d.fungalRisk, "high");
+    assert.ok(d.advisory.some((a) => a.code === "disease" && /late blight/.test(a.disease)), "potato advice names late blight");
+  });
+  await step("the database is at the latest migration version", async () => {
+    const v = await pool.query("SELECT version FROM schema_meta WHERE id=1");
+    assert.ok(v.rows[0].version >= 2, "schema_meta version is " + v.rows[0].version);
+    const c = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name='scans' AND column_name IN ('crop','pest_label')");
+    assert.equal(c.rowCount, 2, "scans.crop and scans.pest_label exist");
+  });
+  await step("crop choice changes what the assistant is told", async () => {
+    const d = expect(await f1.post("/api/chat", {
+      messages: [{ role: "user", text: "What is on my beans?" }],
+      crop: "beans",
+      context: { stage: "moderate", pest: "bean rust" },
+    }), 200);
+    assert.ok(d.reply.length > 0);
+  });
+
   console.log("Password reset and limits");
   await step("forgot password -> email -> new password works, old one does not", async () => {
     const before = mailsTo("f1@test.rw").length;
@@ -431,5 +535,6 @@ try {
   server.kill();
   try { smtp.close(); } catch {}
   gemini.close();
+  climate.close();
   await pool.end();
 }

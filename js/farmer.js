@@ -1,6 +1,7 @@
 /* Farmer dashboard: overview, scanning, history, help requests, nearby help, assistant, farm profile. */
 
 let ME = null;
+let scannerHandle = null;
 let historyOffset = 0;
 const PAGE = 30;
 
@@ -10,6 +11,7 @@ function applyLang() {
   document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
   document.querySelectorAll('[data-q-key]').forEach((el) => { el.dataset.q = t(el.dataset.qKey); });
   refreshResultLabels();
+  if (scannerHandle) scannerHandle.renderCropOptions();
   if (ME) renderAccountBar($('accountBar'), { logoutLabel: t('logout') });
 }
 $('langSelect').value = lang;
@@ -31,7 +33,7 @@ async function loadProfile() {
   const p = await API.get('/api/me?action=profile');
   ME = p.user;
   const f = p.farm || {};
-  FARM_CACHE = { farmName: f.farmName, farmerName: ME.fullName, phone: ME.phone, district: ME.district, sector: ME.sector, lat: f.lat, lng: f.lng, village: f.village, farmSizeHa: f.farmSizeHa };
+  FARM_CACHE = { farmName: f.farmName, farmerName: ME.fullName, phone: ME.phone, district: ME.district, sector: ME.sector, lat: f.lat, lng: f.lng, village: f.village, farmSizeHa: f.farmSizeHa, primaryCrops: f.primaryCrops || ['maize'] };
   return p;
 }
 async function refreshScansCache() {
@@ -69,17 +71,59 @@ async function renderOverview() {
   const ov = clear($('ovScans'));
   if (!scans.scans.length) ov.appendChild(h('p.muted', t('historyEmpty')));
   scans.scans.slice(0, 3).forEach((s) => ov.appendChild(scanCardEl(s)));
+  renderClimate();
   const or = clear($('ovRequests'));
   if (!reqs.requests.length) or.appendChild(h('p.muted', t('noRequests')));
   reqs.requests.slice(0, 3).forEach((r) => or.appendChild(requestRowEl(r, '#requests-' + r.id)));
 }
 function statTile(n, text) { return h('div.stat', h('div.n', String(n ?? '—')), h('div.l', text)); }
 
+/* ---------------- field conditions (NASA POWER) ---------------- */
+
+const ADVISORY = {}; // code -> translation vars, filled per render
+
+async function renderClimate() {
+  const box = $('climateCard');
+  if (!box) return;
+  if (typeof FARM_CACHE.lat !== 'number') {
+    clear(box).appendChild(h('p.muted', t('climateNoFarm')));
+    $('climateSrc').textContent = '';
+    return;
+  }
+  clear(box).appendChild(h('p.muted', t('climateLoading')));
+  try {
+    const d = await API.get('/api/climate?action=field');
+    renderClimateData(d);
+  } catch (err) {
+    clear(box).appendChild(h('p.muted', t('climateFail') + ' ' + err.message));
+    $('climateSrc').textContent = '';
+  }
+}
+
+function renderClimateData(d) {
+  const box = clear($('climateCard'));
+  const cropName = lang === 'rw' ? d.crop.rw : d.crop.label;
+  box.appendChild(h('div.climate-head', h('strong', cropName)));
+  box.appendChild(h('div.stats.climate-stats',
+    statTile(d.rain.last30mm + ' mm', t('rain30')),
+    statTile(d.rain.anomalyPct == null ? '—' : (d.rain.anomalyPct > 0 ? '+' : '') + d.rain.anomalyPct + '%', t('rainNormal')),
+    statTile(d.soil.rootZone == null ? '—' : Math.round(d.soil.rootZone * 100) + '%', t('soilMoisture')),
+    statTile(String(d.drySpellDays), t('drySpell'))));
+  d.advisory.forEach((a) => {
+    const cls = a.level === 'high' ? 'callout bad' : 'callout warn';
+    box.appendChild(h('div.' + cls.split(' ').join('.'),
+      h('strong', t('flag_' + a.code)),
+      h('div', t('adv_' + a.code, { crop: cropName, mm: a.mm || d.heavyRain3dMm, days: a.days || d.heat.days7, threshold: a.threshold || d.heat.thresholdC, disease: a.disease || d.crop.label, need: a.need30 || d.waterNeed30mm }))));
+  });
+  if (!d.advisory.length) box.appendChild(h('p.muted', t('climateOk')));
+  $('climateSrc').textContent = d.attribution + (d.cached ? ' · ' + t('climateCached') : '');
+}
+
 /* ---------------- scan ---------------- */
 
-initScanner({
+scannerHandle = initScanner({
   fileInput: $('fileInput'), dropzone: $('dropzone'), preview: $('preview'),
-  scanBtn: $('scanBtn'), clearBtn: $('clearBtn'), loading: $('loading'),
+  scanBtn: $('scanBtn'), clearBtn: $('clearBtn'), loading: $('loading'), cropSelect: $('cropSelect'),
   onClear: resetResult,
   onScan: async (photo) => {
     resetResult();
@@ -214,9 +258,9 @@ async function sendChat(text) {
   $('chatSend').disabled = true;
   const pending = addChatMsg('model', t('thinking'));
   try {
-    const latest = lastScan || (SCANS_CACHE[0] ? { stage: SCANS_CACHE[0].stage, affectedArea: SCANS_CACHE[0].affectedArea, recommendation: SCANS_CACHE[0].recommendation, riskLevel: SCANS_CACHE[0].riskLevel } : null);
-    const context = latest ? { stage: latest.stage, affectedArea: latest.affectedArea, recommendation: latest.recommendation, riskLevel: latest.riskLevel || '' } : null;
-    const d = await API.post('/api/chat', { messages: chatHistory.slice(-7), context, lang });
+    const latest = lastScan || SCANS_CACHE[0] || null;
+    const context = latest ? { stage: latest.stage, pest: latest.pest, affectedArea: latest.affectedArea, recommendation: latest.recommendation, riskLevel: latest.riskLevel || '' } : null;
+    const d = await API.post('/api/chat', { messages: chatHistory.slice(-7), context, crop: (latest && latest.crop) || currentCrop(), lang });
     pending.textContent = d.reply;
     chatHistory.push({ role: 'model', text: d.reply });
   } catch (err) {
@@ -244,8 +288,42 @@ function renderFarm() {
   $('farmLat').value = typeof f.lat === 'number' ? f.lat : '';
   $('farmLng').value = typeof f.lng === 'number' ? f.lng : '';
   $('farmEmails').checked = ME.emailNotifications !== false;
+  renderFarmCrops();
   $('farmStatus').textContent = '';
 }
+function onCropChoicesLoaded() {
+  renderFarmCrops();
+  // a farmer who has never picked a crop starts on the first crop they grow
+  const select = $('cropSelect');
+  if (select && FARM_CACHE.primaryCrops && FARM_CACHE.primaryCrops.length) {
+    let saved = null;
+    try { saved = localStorage.getItem('crop'); } catch {}
+    if (!saved) select.value = FARM_CACHE.primaryCrops[0];
+  }
+}
+
+function renderFarmCrops() {
+  const box = $('farmCrops');
+  if (!box) return;
+  const chosen = new Set(FARM_CACHE.primaryCrops || ['maize']);
+  clear(box);
+  CROP_CHOICES.forEach((c) => {
+    const id = 'crop_' + c.id;
+    const label = h('label.check', null);
+    const input = h('input');
+    input.type = 'checkbox';
+    input.id = id;
+    input.value = c.id;
+    input.checked = chosen.has(c.id);
+    label.appendChild(input);
+    label.appendChild(h('span', ' ' + (lang === 'rw' ? c.rw : c.en)));
+    box.appendChild(label);
+  });
+}
+function selectedCrops() {
+  return [...document.querySelectorAll('#farmCrops input:checked')].map((el) => el.value);
+}
+
 $('farmUseLoc').addEventListener('click', async () => {
   $('farmStatus').textContent = t('f_locating');
   const g = await getGps(10000, 0);
@@ -265,7 +343,7 @@ $('farmForm').addEventListener('submit', async (e) => {
     await busy($('farmSave'), () => API.put('/api/me?action=profile', {
       fullName: $('farmerName').value, phone: $('farmPhone').value, district: $('farmDistrict').value, sector: $('farmSector').value,
       emailNotifications: $('farmEmails').checked, preferredLang: lang,
-      farm: { farmName: $('farmName').value, village: $('farmVillage').value, farmSizeHa: $('farmSize').value, lat: valid ? lat : null, lng: valid ? lng : null },
+      farm: { farmName: $('farmName').value, village: $('farmVillage').value, farmSizeHa: $('farmSize').value, lat: valid ? lat : null, lng: valid ? lng : null, primaryCrops: selectedCrops() },
     }));
     await loadProfile();
     gpsCache = null;

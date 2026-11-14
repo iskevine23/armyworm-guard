@@ -26,6 +26,7 @@ function fmt(a) {
   return {
     id: a.id,
     status: a.status,
+    crop: a.crop || "maize",
     centerLat: a.center_lat,
     centerLng: a.center_lng,
     radiusKm: a.radius_km,

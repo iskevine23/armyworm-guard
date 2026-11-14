@@ -58,6 +58,65 @@ Statuses: `suspected` (automatic) → `investigating` → `confirmed` (needs a f
 person can confirm) or `false_alarm` → `resolved`. Every change is kept in the alert's history.
 Admins change N, R, D, stages and confidence in **Settings**.
 
+## Crops other than maize (`lib/crops.js`)
+
+The app is no longer maize-only. `lib/crops.js` is the single source of truth for **13 crops**:
+maize, beans, cassava, banana, rice, Irish potato, sweet potato, coffee, groundnut, soybean,
+sorghum, tomato and cabbage. Each entry carries the English and Kinyarwanda name, the four pests
+or diseases that matter most on that crop with the visible signs to look for, how much water a
+season needs, how long the season is, and the temperature at which the crop starts to suffer.
+
+Adding a crop is a data change, not a code change:
+
+1. add one entry to `CROPS` in `lib/crops.js`
+2. that is it — the scanner prompt, the assistant, the farmer's "crops you grow" list, the
+   climate advisory and the outbreak rules all read from the same list
+
+What changed with it:
+
+- `scans.crop` and `scans.pest_label` are stored, so reports can be filtered (`?crop=beans`) and
+  exported per crop. Unknown or missing crop falls back to `maize`, so old clients keep working.
+- The Gemini prompt is built from the crop: maize still looks for fall armyworm, beans look for bean
+  fly, anthracnose, rust and blight, coffee looks for berry disease and leaf rust, and so on. The
+  answer now includes `pest`, the most likely cause by name.
+- Outbreak clusters are **per crop**: three bean reports can no longer complete a maize cluster, and
+  an open alert only accepts scans of its own crop (`outbreak_alerts.crop`).
+- Farmers pick their crops on the scan screen (homepage too) and list what they grow under
+  **My farm**.
+
+## Field conditions from NASA POWER (`lib/climate.js`, `api/climate.js`)
+
+`GET /api/climate?action=field` answers the question a photo cannot: *is this field short of water,
+flooded, too hot, or about to break out in disease?* It uses **NASA POWER**
+(https://power.larc.nasa.gov), the free NASA agro-climatology service — no account, no API key, no
+satellite image to download:
+
+- rainfall, max/min/mean temperature, humidity, solar radiation and root-zone soil wetness, daily
+- the last 30 days compared with the same 30-day window in each of the previous 5 years, so
+  "40% below normal" means that place, that month — not a national average
+- dry-spell length, 3-day heavy-rain total, heat-stress days above the crop's threshold,
+  growing-degree-day accumulation, and a fungal-pressure score (rainy days × humidity × warmth)
+
+Output flags: `drought`, `flood`, `heat`, `disease`, each with an advisory that names the crop and
+the disease to look for (`late blight` on potato, `coffee berry disease` on coffee, …). The response
+carries the required attribution line ("Climate data: NASA POWER, CC BY 4.0").
+
+Design notes that matter in production:
+
+- **One JSON call per field per 12 hours.** Results are cached in `climate_cache` (key: ~1 km cell +
+  crop + day), so a farmer's dashboard never waits on a government API, and we stay inside fair use.
+- If NASA is slow or down, the last good summary is served with `stale: true` rather than an error.
+- The browser never calls NASA directly; there is no key to leak and no CORS problem.
+- No farm location saved yet? The endpoint says so plainly instead of guessing a district centre.
+
+**Honest limits.** NASA POWER is ~0.5° (about 50 km) gridded reanalysis, not a satellite image of
+your field: it is right about regional rainfall and drought, and wrong about one hillside versus the
+next. It cannot see armyworm. It says "this field is stressed and the weather favours pests" — the
+photo and the farmer say what is actually there. Higher-resolution vegetation indices
+(Sentinel-2, 10 m, 5-day revisit through the Copernicus Data Space / Sentinel Hub Statistical API)
+are the natural next layer; the free tier is 10,000 processing units a month at roughly 34 PU per
+field request, and `lib/climate.js` is already the place to add it.
+
 ## Project layout
 
 ```
@@ -78,14 +137,18 @@ api/outbreaks.js      outbreak alerts
 api/me.js             own profile, notifications
 api/admin.js          users, settings, stats, health, emails, activity, reports
 api/chat.js           assistant (logged in)       api/alert.js  send a result to own email/Telegram
+api/climate.js        NASA POWER field conditions (rain, soil, heat, disease risk)
 api/predict-spread.js unchanged public calculation
 lib/                  database, auth, mailer, outbreak engine, access rules, Gemini, validation
+lib/crops.js          crop catalog: names, pests, water need, heat limit (add a crop here)
+lib/climate.js        NASA POWER client, climatology maths, caching, advisories
 db/schema.sql         all tables (created automatically on first request, or `npm run migrate`)
+db/migrations.js      incremental migrations for databases that already exist (append only)
 scripts/              dev server, migrate, create-admin
-tests/e2e.mjs         38 end-to-end checks against real Postgres + a real SMTP server
+tests/e2e.mjs         47 end-to-end checks against real Postgres + a real SMTP server
 ```
 
-Vercel's Hobby plan allows 12 functions; this uses 9.
+Vercel's Hobby plan allows 12 functions; this uses 11.
 
 ## Deploy on Vercel (step by step)
 

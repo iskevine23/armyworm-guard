@@ -1,10 +1,13 @@
 /* Public homepage: scanning only. Visitors get the basic result; logged-in users get everything. */
 
+let scannerHandle = null;
+
 function applyLang() {
   document.documentElement.lang = lang;
   document.title = t('title');
   document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   refreshResultLabels();
+  if (scannerHandle) scannerHandle.renderCropOptions();
   renderAccountBar($('accountBar'), {
     showDashboardLink: true, loginLabel: t('btnLogin'), registerLabel: t('btnRegisterShort'),
     dashboardLabel: t('openDashboard'), logoutLabel: t('logout'),
@@ -19,9 +22,9 @@ langSelect.addEventListener('change', () => {
   applyLang();
 });
 
-initScanner({
+scannerHandle = initScanner({
   fileInput: $('fileInput'), dropzone: $('dropzone'), preview: $('preview'),
-  scanBtn: $('scanBtn'), clearBtn: $('clearBtn'), loading: $('loading'),
+  scanBtn: $('scanBtn'), clearBtn: $('clearBtn'), loading: $('loading'), cropSelect: $('cropSelect'),
   onClear: resetResult,
   onScan: async (photo) => {
     resetResult();

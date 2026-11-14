@@ -2,9 +2,52 @@
    Resizes to max 1024 px and re-encodes as JPEG so uploads stay under Vercel's ~4.5 MB body limit,
    and makes a small thumbnail that is saved with the scan. */
 
+/* Crop picker shared by the homepage and the farmer dashboard.
+   The list comes from the server (lib/crops.js), so there is one source of truth. */
+let CROP_CHOICES = [{ id: 'maize', en: 'Maize', rw: 'Ibigori' }];
+let cropSelectEl = null;
+
+async function loadCropChoices() {
+  try {
+    const d = await API.get('/api/climate?action=crops');
+    if (Array.isArray(d.crops) && d.crops.length) CROP_CHOICES = d.crops;
+  } catch { /* offline: keep maize */ }
+}
+
+function renderCropOptions() {
+  if (!cropSelectEl) return;
+  let keep = cropSelectEl.value;
+  if (!keep) { try { keep = localStorage.getItem('crop') || ''; } catch {} }
+  cropSelectEl.textContent = '';
+  CROP_CHOICES.forEach((c) => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = lang === 'rw' ? c.rw : c.en;
+    cropSelectEl.appendChild(opt);
+  });
+  cropSelectEl.value = CROP_CHOICES.some((c) => c.id === keep) ? keep : CROP_CHOICES[0].id;
+}
+
+function initCropPicker(select) {
+  if (!select) return;
+  cropSelectEl = select;
+  select.addEventListener('change', () => { try { localStorage.setItem('crop', select.value); } catch {} });
+  loadCropChoices().then(() => {
+    renderCropOptions();
+    // lets a page draw something else that depends on the crop list (the farm checkboxes)
+    if (typeof onCropChoicesLoaded === 'function') onCropChoicesLoaded();
+  });
+  renderCropOptions();
+}
+
+function currentCrop() {
+  return (cropSelectEl && cropSelectEl.value) || 'maize';
+}
+
 function initScanner(o) {
   let base64Image = null;
   let thumb = null;
+  initCropPicker(o.cropSelect);
 
   function reset() {
     o.fileInput.value = '';
@@ -59,12 +102,12 @@ function initScanner(o) {
     o.loading.style.display = 'block';
     o.scanBtn.disabled = true;
     try {
-      await o.onScan({ image: base64Image, mediaType: 'image/jpeg', thumb });
+      await o.onScan({ image: base64Image, mediaType: 'image/jpeg', thumb, crop: currentCrop() });
     } finally {
       o.loading.style.display = 'none';
       o.scanBtn.disabled = false;
     }
   });
 
-  return { reset };
+  return { reset, renderCropOptions };
 }
