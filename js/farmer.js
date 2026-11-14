@@ -34,6 +34,11 @@ async function loadProfile() {
   ME = p.user;
   const f = p.farm || {};
   FARM_CACHE = { farmName: f.farmName, farmerName: ME.fullName, phone: ME.phone, district: ME.district, sector: ME.sector, lat: f.lat, lng: f.lng, village: f.village, farmSizeHa: f.farmSizeHa, primaryCrops: f.primaryCrops || ['maize'] };
+  // the crop list often arrives before the profile does, so redraw anything that needs both
+  if (typeof CROP_CHOICES !== 'undefined' && CROP_CHOICES.length > 1) {
+    renderFarmCrops();
+    renderHistoryChips();
+  }
   return p;
 }
 async function refreshScansCache() {
