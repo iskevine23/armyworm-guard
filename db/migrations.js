@@ -33,6 +33,26 @@ export const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS climate_cache_fetched_idx ON climate_cache (fetched_at DESC);
     `,
   },
+  {
+    version: 3,
+    what: "demo accounts follow the Umurima rename (older demos seeded *@armywormguard.test)",
+    sql: `
+      -- A database seeded before the rename still holds demo.persona@armywormguard.test, while
+      -- lib/demo.js now looks for demo.persona@umurima.test. Without this, demo mode quietly creates
+      -- a second, empty account and the dashboard shows no farm and no history. Drop such an empty
+      -- duplicate first so the email rename cannot collide, then rename the seeded people.
+      DELETE FROM users u
+       WHERE lower(u.email) LIKE 'demo.%@umurima.test'
+         AND NOT EXISTS (SELECT 1 FROM farmer_profiles f WHERE f.user_id = u.id)
+         AND NOT EXISTS (SELECT 1 FROM advisor_profiles a WHERE a.user_id = u.id)
+         AND NOT EXISTS (SELECT 1 FROM scans s WHERE s.user_id = u.id)
+         AND NOT EXISTS (SELECT 1 FROM assistance_requests r WHERE r.farmer_id = u.id)
+         AND EXISTS (SELECT 1 FROM users l WHERE lower(l.email) = lower(replace(u.email, '@umurima.test', '@armywormguard.test')));
+
+      UPDATE users SET email = replace(email, '@armywormguard.test', '@umurima.test')
+       WHERE lower(email) LIKE 'demo.%@armywormguard.test';
+    `,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS.reduce((n, m) => Math.max(n, m.version), 1);
