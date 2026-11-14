@@ -105,9 +105,10 @@ const climate = http.createServer((req, res) => {
 
 /* ---------- HTTP client with a cookie jar per user ---------- */
 class Client {
-  constructor(name) { this.name = name; this.cookie = ""; }
+  constructor(name, base = BASE) { this.name = name; this.base = base; this.cookie = ""; }
   async call(method, url, body, headers = {}) {
-    const res = await fetch(BASE + url, {
+    const res = await fetch(this.base + url, {
+      redirect: "manual", // the demo role switch answers 302; the test wants to see it, not follow it
       method,
       headers: { ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...(this.cookie ? { Cookie: this.cookie } : {}), ...headers },
       body: body !== undefined ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined,
@@ -158,6 +159,24 @@ let serverLog = "";
 server.stdout.on("data", (d) => (serverLog += d));
 server.stderr.on("data", (d) => (serverLog += d));
 for (let i = 0; i < 50 && !serverLog.includes("dev server"); i++) await wait(100);
+
+// A second instance of the same code with DEMO_MODE=1: the public, no-login demo deployment.
+const DEMO_BASE = `http://127.0.0.1:${PORT + 1}`;
+const demoServer = spawn(process.execPath, [path.join(root, "scripts/dev-server.mjs")], {
+  cwd: root,
+  env: {
+    ...process.env, PORT: String(PORT + 1), DATABASE_URL: DB, JWT_SECRET: "test-secret-0123456789-0123456789-abcdef",
+    GEMINI_API_KEY: "test", GEMINI_API_BASE: `http://127.0.0.1:${GEM_PORT}`, GEMINI_MODELS: "gemini-test",
+    CLIMATE_API_BASE: `http://127.0.0.1:${CLIM_PORT}`,
+    EMAIL_FROM: "ArmywormGuard <alerts@armywormguard.test>", APP_URL: DEMO_BASE,
+    GMAIL_USER: "", GMAIL_APP_PASSWORD: "", SMTP_HOST: "", DEMO_MODE: "1",
+  },
+  stdio: ["ignore", "pipe", "pipe"],
+});
+let demoLog = "";
+demoServer.stdout.on("data", (d) => (demoLog += d));
+demoServer.stderr.on("data", (d) => (demoLog += d));
+for (let i = 0; i < 60 && !demoLog.includes("dev server"); i++) await wait(100);
 
 const anon = new Client("visitor"), admin = new Client("admin"), f1 = new Client("f1"), f2 = new Client("f2"), f3 = new Client("f3"), adv = new Client("advisor"), adv2 = new Client("advisor2");
 const X = { lat: -1.4995, lng: 29.6335 }; // Musanze
@@ -494,6 +513,68 @@ try {
     assert.ok(d.reply.length > 0);
   });
 
+  console.log("Demo deployment (no login, separate from production)");
+  const demo = new Client("demo", DEMO_BASE);
+  await step("a visitor is signed in as the demo farmer without any password", async () => {
+    const d = expect(await demo.get("/api/auth?action=me"), 200);
+    assert.equal(d.user.role, "farmer");
+    assert.equal(d.demo.persona, "farmer");
+    assert.ok(d.user.email.endsWith("@armywormguard.test"));
+  });
+  await step("the demo database seeds itself with realistic history", async () => {
+    const d = expect(await demo.get("/api/scans?action=list&limit=50"), 200);
+    assert.ok(d.total >= 5, "demo farmer has scans: " + d.total);
+    const crops = new Set(d.scans.map((s) => s.crop));
+    assert.ok(crops.has("beans") && crops.has("maize"), "crops: " + [...crops].join(","));
+    const reqs = expect(await demo.get("/api/requests?action=list"), 200);
+    assert.ok(reqs.requests.length >= 1, "demo farmer has a help request");
+    const seeded = await pool.query("SELECT count(*)::int AS n FROM users WHERE lower(email) LIKE 'demo.%'");
+    assert.equal(seeded.rows[0].n, 5, "five demo people, seeded once");
+  });
+  await step("authorisation still applies to the demo farmer", async () => {
+    expect(await demo.get("/api/admin?action=users"), 403);
+    expect(await demo.get("/api/outbreaks?action=list"), 403);
+  });
+  await step("the role switch moves a visitor to advisor without logging in", async () => {
+    const r = await demo.get("/api/demo?action=switch&persona=advisor&next=advisor.html");
+    assert.equal(r.status, 302);
+    assert.equal(r.headers.get("location"), "/advisor.html");
+    const me = expect(await demo.get("/api/auth?action=me"), 200);
+    assert.equal(me.user.role, "advisor");
+    expect(await demo.get("/api/outbreaks?action=list"), 200);
+    expect(await demo.get("/api/admin?action=users"), 403, "an advisor is not an administrator");
+  });
+  await step("the role switch can also show the administrator screens", async () => {
+    assert.equal((await demo.get("/api/demo?action=switch&persona=admin&next=admin.html")).status, 302);
+    const d = expect(await demo.get("/api/admin?action=users"), 200);
+    assert.ok(d.total >= 5);
+  });
+  await step("login, registration and password reset are refused in the demo", async () => {
+    const r = await demo.post("/api/auth?action=login", { email: "demo.farmer@armywormguard.test", password: "anything12" });
+    assert.equal(r.status, 403);
+    assert.ok(/demo/i.test(r.data.error));
+    expect(await demo.post("/api/auth?action=register", { fullName: "X Y", email: "x@y.test", password: "Password123" }), 403);
+    expect(await demo.post("/api/auth?action=forgot", { email: "demo.farmer@armywormguard.test" }), 403);
+  });
+  await step("a visitor can still scan, and the scan is saved as the demo farmer", async () => {
+    assert.equal((await demo.get("/api/demo?action=switch&persona=farmer&next=farmer.html")).status, 302);
+    const d = expect(await demo.post("/api/scans", { image: img("moderate"), crop: "beans" }), 200);
+    assert.equal(d.scan.crop, "beans");
+    assert.equal(d.basic, false);
+    const list = expect(await demo.get("/api/scans?action=list&crop=beans&limit=5"), 200);
+    assert.ok(list.total >= 1);
+  });
+  await step("demo mode never sends email: it records it as skipped", async () => {
+    assert.equal((await demo.get("/api/demo?action=switch&persona=admin&next=admin.html")).status, 302);
+    expect(await demo.post("/api/admin?action=email-test", { to: "reviewer@example.com" }), 200);
+    const row = await pool.query("SELECT status, error FROM email_log WHERE to_email='reviewer@example.com' ORDER BY id DESC LIMIT 1");
+    assert.equal(row.rows[0].status, "skipped");
+    assert.ok(/demo/i.test(row.rows[0].error));
+  });
+  await step("demo endpoints are inert when DEMO_MODE is off", async () => {
+    expect(await admin.get("/api/demo"), 404);
+  });
+
   console.log("Password reset and limits");
   await step("forgot password -> email -> new password works, old one does not", async () => {
     const before = mailsTo("f1@test.rw").length;
@@ -533,6 +614,7 @@ try {
   process.exitCode = 1;
 } finally {
   server.kill();
+  demoServer.kill();
   try { smtp.close(); } catch {}
   gemini.close();
   climate.close();

@@ -7,6 +7,7 @@ import {
 } from "../lib/auth.js";
 import { getSettings, logActivity, rateLimit, housekeeping } from "../lib/system.js";
 import { renderEmail, sendEmail, sendEmails } from "../lib/mailer.js";
+import { demoMode, PERSONAS } from "../lib/demo.js";
 
 const LANGS = ["en", "rw"];
 let dummy = null;
@@ -74,7 +75,10 @@ export default api(
         housekeeping();
         if (!user) return { user: null };
         const unread = await one("SELECT COUNT(*)::int AS n FROM notifications WHERE user_id=$1 AND read_at IS NULL", [user.id]);
-        return { user: publicUser(user), profile: await profileFor(user), unreadNotifications: unread.n };
+        const out = { user: publicUser(user), profile: await profileFor(user), unreadNotifications: unread.n };
+        // Tells the browser to draw the demo role switcher instead of log in / log out.
+        if (demoMode()) out.demo = { persona: user.role, personas: PERSONAS };
+        return out;
       },
     },
 

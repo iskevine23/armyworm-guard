@@ -360,3 +360,10 @@
 .climate-head{ font-size:0.95rem; margin:2px 0 6px; }
 .climate .stats{ margin:0 0 8px; }
 .climate .callout{ margin:8px 0; }
+
+/* ---------------- demo mode switcher ---------------- */
+.demo-switch{ display:inline-flex; align-items:center; gap:8px; font-size:0.82rem; color:var(--husk-dim); flex-wrap:wrap; }
+.demo-switch a{ color:var(--husk); text-decoration:underline; }
+.demo-switch strong{ color:var(--husk); }
+.demo-tag{ background:var(--amber); color:#1c2818; font-family:"IBM Plex Mono", monospace; font-size:0.64rem; letter-spacing:0.08em; padding:2px 6px; border-radius:4px; }
+.demo-sep{ opacity:0.4; }

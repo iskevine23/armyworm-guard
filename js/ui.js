@@ -33,11 +33,17 @@ const API = {
 
 /* ---------------- session ---------------- */
 
-let SESSION = null; // { user, profile, unreadNotifications }
+let SESSION = null; // { user, profile, unreadNotifications, demo? }
+const DEMO = { mode: false, persona: 'farmer' }; // set when the server runs with DEMO_MODE=1
+const DEMO_PAGES = { farmer: 'farmer.html', advisor: 'advisor.html', admin: 'admin.html' };
 
 async function loadSession() {
   try { SESSION = await API.get('/api/auth?action=me'); }
   catch { SESSION = { user: null }; }
+  if (SESSION && SESSION.demo) {
+    DEMO.mode = true;
+    DEMO.persona = SESSION.demo.persona || (SESSION.user && SESSION.user.role) || 'farmer';
+  }
   return SESSION;
 }
 
@@ -192,6 +198,26 @@ function renderAccountBar(container, opts) {
   opts = opts || {};
   clear(container);
   const s = SESSION;
+  if (DEMO.mode) {
+    const here = (location.pathname.split('/').pop() || 'index.html') + location.hash;
+    const bar = h('span.demo-switch', h('span.demo-tag', 'DEMO'));
+    ['farmer', 'advisor', 'admin'].forEach((p, i) => {
+      if (i) bar.appendChild(h('span.demo-sep', '·'));
+      const href = '/api/demo?action=switch&persona=' + p + '&next=' + encodeURIComponent(
+        DEMO_PAGES[p] === (location.pathname.split('/').pop() || '') ? here : DEMO_PAGES[p]);
+      bar.appendChild(p === DEMO.persona
+        ? h('strong', p[0].toUpperCase() + p.slice(1))
+        : h('a', { href }, p[0].toUpperCase() + p.slice(1)));
+    });
+    container.appendChild(bar);
+    if (s && s.user) {
+      const bell = h('button.icon-btn.bell', { type: 'button', 'aria-label': 'Notifications', title: 'Notifications', onclick: () => openNotifications(bell) }, '🔔',
+        s.unreadNotifications ? h('span.dot', String(Math.min(99, s.unreadNotifications))) : null);
+      container.appendChild(bell);
+      container.appendChild(h('span.who', { title: 'Demo account' }, s.user.fullName.split(' ')[0]));
+    }
+    return;
+  }
   if (!s || !s.user) {
     container.appendChild(h('a.btn.secondary.small', { href: 'login.html' }, opts.loginLabel || 'Log in'));
     container.appendChild(h('a.btn.small', { href: 'login.html#register' }, opts.registerLabel || 'Create account'));
