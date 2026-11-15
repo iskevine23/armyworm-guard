@@ -34,6 +34,11 @@ async function loadProfile() {
   ME = p.user;
   const f = p.farm || {};
   FARM_CACHE = { farmName: f.farmName, farmerName: ME.fullName, phone: ME.phone, district: ME.district, sector: ME.sector, lat: f.lat, lng: f.lng, village: f.village, farmSizeHa: f.farmSizeHa, primaryCrops: f.primaryCrops || ['maize'] };
+  // the crop list often arrives before the profile does, so redraw anything that needs both
+  if (typeof CROP_CHOICES !== 'undefined' && CROP_CHOICES.length > 1) {
+    renderFarmCrops();
+    renderHistoryChips();
+  }
   return p;
 }
 async function refreshScansCache() {
@@ -50,7 +55,7 @@ async function renderOverview() {
   $('hello').textContent = (lang === 'rw' ? 'Muraho, ' : 'Hello, ') + ME.fullName.split(' ')[0];
   $('farmMissing').style.display = typeof FARM_CACHE.lat === 'number' ? 'none' : 'flex';
   const [scans, reqs, near] = await Promise.all([
-    API.get('/api/scans?action=list&limit=5'),
+    API.get('/api/scans?action=list&limit=14'),
     API.get('/api/requests?action=list&limit=5'),
     API.get('/api/outbreaks?action=nearby').catch(() => ({ alerts: [] })),
   ]);
@@ -71,6 +76,7 @@ async function renderOverview() {
   const ov = clear($('ovScans'));
   if (!scans.scans.length) ov.appendChild(h('p.muted', t('historyEmpty')));
   scans.scans.slice(0, 3).forEach((s) => ov.appendChild(scanCardEl(s)));
+  renderTrend(scans.scans);
   renderClimate();
   const or = clear($('ovRequests'));
   if (!reqs.requests.length) or.appendChild(h('p.muted', t('noRequests')));
@@ -172,8 +178,40 @@ $('tgInput').value = lsGet('tgChat', '') || '';
 
 /* ---------------- history ---------------- */
 
+let historyFilter = 'all';
+
+function renderHistoryChips() {
+  const box = $('historyChips');
+  if (!box) return;
+  clear(box);
+  const all = h('button', { type: 'button', 'aria-pressed': String(historyFilter === 'all'), onclick: () => setHistoryFilter('all') }, h('span.dot'), t('allCrops'));
+  all.dataset.crop = 'all';
+  box.appendChild(all);
+  (typeof CROP_CHOICES !== 'undefined' ? CROP_CHOICES : []).forEach((c) => {
+    const b = h('button', { type: 'button', 'aria-pressed': String(historyFilter === c.id), onclick: () => setHistoryFilter(c.id) },
+      h('span.dot'), lang === 'rw' ? c.rw : c.en);
+    b.dataset.crop = c.id;
+    box.appendChild(b);
+  });
+}
+
+function applyHistoryFilter() {
+  document.querySelectorAll('#historyChips button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(b.dataset.crop === historyFilter));
+  });
+  document.querySelectorAll('#historyList .scan-item').forEach((card) => {
+    card.style.display = historyFilter === 'all' || card.dataset.crop === historyFilter ? '' : 'none';
+  });
+}
+
+function setHistoryFilter(id) {
+  historyFilter = id;
+  applyHistoryFilter();
+}
+
 async function renderHistory(reset) {
   if (reset) { historyOffset = 0; clear($('historyList')); }
+  renderHistoryChips();
   const d = await API.get(`/api/scans?action=list&limit=${PAGE}&offset=${historyOffset}`);
   if (reset && !d.scans.length) $('historyList').appendChild(h('p.muted', t('historyEmpty')));
   d.scans.forEach((s) => {
@@ -187,12 +225,42 @@ async function renderHistory(reset) {
       renderHistory(true);
       refreshScansCache();
     };
-    $('historyList').appendChild(scanCardEl(s, { actions: [help, share, s.alertId ? null : del] }));
+    const card = scanCardEl(s, { actions: [help, share, s.alertId ? null : del] });
+    card.dataset.crop = s.crop || '';
+    card.dataset.stage = s.stage || '';
+    $('historyList').appendChild(card);
   });
+  applyHistoryFilter();
   historyOffset += d.scans.length;
   $('historyMore').style.display = historyOffset < d.total ? 'inline-block' : 'none';
 }
 $('historyMore').addEventListener('click', () => renderHistory(false));
+
+/* ---------------- risk trend (gauge + sparkline) ---------------- */
+
+function renderTrend(list) {
+  const host = $('trendGauge');
+  const spark = $('trendSpark');
+  const stage = $('trendStage');
+  if (!host || !spark) return;
+  const recent = (list || []).slice().reverse(); // oldest first
+  const values = recent.map((s) => Number(s.riskScore) || 0);
+  const last = recent[recent.length - 1];
+  if (stage) {
+    stage.textContent = last ? tl('stage_', last.stage || 'none') : '—';
+    stage.className = 'pill-status ' + (last && last.stage === 'severe' ? 'bad' : last && last.stage === 'moderate' ? 'warn' : 'ok');
+  }
+  if (values.length < 2) {
+    host.innerHTML = '';
+    spark.innerHTML = '';
+    host.appendChild(h('div.risk-basis', t('trendNeed')));
+    return;
+  }
+  if (typeof Motion !== 'undefined') {
+    Motion.gauge(host, values[values.length - 1], t('riskScore').toUpperCase());
+    Motion.spark(spark, values, { width: 100, height: 34 });
+  }
+}
 
 /* ---------------- requests ---------------- */
 
@@ -293,9 +361,10 @@ function renderFarm() {
 }
 function onCropChoicesLoaded() {
   renderFarmCrops();
+  renderHistoryChips();
   // a farmer who has never picked a crop starts on the first crop they grow
   const select = $('cropSelect');
-  if (select && FARM_CACHE.primaryCrops && FARM_CACHE.primaryCrops.length) {
+  if (select && FARM_CACHE && FARM_CACHE.primaryCrops && FARM_CACHE.primaryCrops.length) {
     let saved = null;
     try { saved = localStorage.getItem('crop'); } catch {}
     if (!saved) select.value = FARM_CACHE.primaryCrops[0];
@@ -305,7 +374,7 @@ function onCropChoicesLoaded() {
 function renderFarmCrops() {
   const box = $('farmCrops');
   if (!box) return;
-  const chosen = new Set(FARM_CACHE.primaryCrops || ['maize']);
+  const chosen = new Set((FARM_CACHE && FARM_CACHE.primaryCrops) || ['maize']);
   clear(box);
   CROP_CHOICES.forEach((c) => {
     const id = 'crop_' + c.id;

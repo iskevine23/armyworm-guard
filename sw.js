@@ -1,10 +1,10 @@
 // Network-first service worker: always tries the network so new deployments show up at once,
 // and falls back to the last cached copy when the phone is offline (shell + advisor directory).
 // API calls (and therefore every logged-in data request) are never cached.
-const CACHE = 'armywormguard-v5';
+const CACHE = 'umurima-v6';
 const SHELL = [
   './', 'index.html', 'login.html', 'farmer.html', 'css/style.css',
-  'js/i18n.js', 'js/ui.js', 'js/store.js', 'js/scanner.js', 'js/result.js', 'js/home.js',
+  'js/i18n.js', 'js/ui.js', 'js/motion.js', 'js/store.js', 'js/scanner.js', 'js/result.js', 'js/home.js',
   'js/districts.js', 'js/nearby.js', 'js/threads.js', 'js/farmer.js',
   'data/directory.json', 'manifest.webmanifest', 'icons/icon-192.png'
 ];

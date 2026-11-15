@@ -38,10 +38,10 @@ export async function sendResetEmail(req, user, { invite = false } = {}) {
   const { text, html } = renderEmail(
     invite
       ? {
-          heading: "Your ArmywormGuard account is ready",
+          heading: "Your Umurima account is ready",
           lines: [
             `Hello ${user.full_name},`,
-            `An administrator created an ArmywormGuard ${user.role} account for you. Choose your password to sign in. This link works for ${hours} hours.`,
+            `An administrator created an Umurima ${user.role} account for you. Choose your password to sign in. This link works for ${hours} hours.`,
           ],
           details: [["Sign-in email", user.email], ["Role", user.role]],
           button: { label: "Choose my password", url: link },
@@ -50,7 +50,7 @@ export async function sendResetEmail(req, user, { invite = false } = {}) {
           heading: "Reset your password",
           lines: [
             `Hello ${user.full_name},`,
-            "Someone asked to reset the password for your ArmywormGuard account. If it was you, use the button below. The link works for 1 hour. If it was not you, ignore this email: your password will not change.",
+            "Someone asked to reset the password for your Umurima account. If it was you, use the button below. The link works for 1 hour. If it was not you, ignore this email: your password will not change.",
           ],
           button: { label: "Choose a new password", url: link },
         }
@@ -58,7 +58,7 @@ export async function sendResetEmail(req, user, { invite = false } = {}) {
   const result = await sendEmail({
     to: user.email,
     userId: user.id,
-    subject: invite ? "Your ArmywormGuard account" : "Reset your ArmywormGuard password",
+    subject: invite ? "Your Umurima account" : "Reset your Umurima password",
     text,
     html,
     template: invite ? "invite" : "password_reset",
@@ -128,14 +128,14 @@ export default api(
         await logActivity(created.id, role === "admin" ? "register_bootstrap_admin" : "register", "user", created.id, null, ip);
 
         const { text, html } = renderEmail({
-          heading: `Welcome to ArmywormGuard, ${fullName}`,
+          heading: `Welcome to Umurima, ${fullName}`,
           lines: [
             "Your account is ready. You can now save your scans, see full results and spread risk, and ask an agricultural advisor for help.",
             "Tip: save your farm location in My farm so your reports reach the right advisor.",
           ],
           button: { label: "Open my dashboard", url: appUrl(req) + "/dashboard.html" },
         });
-        await sendEmails([{ to: email, userId: created.id, subject: "Welcome to ArmywormGuard", text, html, template: "welcome" }], { budgetMs: 5000 })
+        await sendEmails([{ to: email, userId: created.id, subject: "Welcome to Umurima", text, html, template: "welcome" }], { budgetMs: 5000 })
           .catch((e) => console.error("welcome email:", e.message));
 
         return { __status: 201, user: publicUser(created), profile: await profileFor(created) };

@@ -73,4 +73,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log(`ArmywormGuard dev server on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`Umurima dev server on http://localhost:${PORT}`));

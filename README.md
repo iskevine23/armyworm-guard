@@ -1,6 +1,6 @@
-# ArmywormGuard v2
+# Umurima v2
 
-Fall armyworm (nkongwa) early warning for maize farmers in Rwanda and East Africa.
+Crop pest and disease early warning for smallholder farmers in Rwanda and East Africa.
 Anyone can photograph a maize leaf and get a basic AI check. Farmers with a free account get full
 results, history, spread risk and help from agricultural advisors. When several farmers report
 serious damage close together, the system raises an outbreak alert and emails advisors and administrators.

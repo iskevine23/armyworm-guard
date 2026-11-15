@@ -1,10 +1,12 @@
 {
-  "name": "armyworm-guard",
+  "name": "umurima",
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "AI-powered fall armyworm detection with farmer, advisor and admin dashboards, real email notifications and automatic outbreak detection",
-  "engines": { "node": ">=18" },
+  "description": "Umurima: AI crop pest and disease detection for Rwanda, with farmer, advisor and admin dashboards, NASA POWER field conditions, real email notifications and automatic outbreak detection",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
     "vercel-dev": "vercel dev",

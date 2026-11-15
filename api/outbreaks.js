@@ -142,7 +142,7 @@ export default api(
             body: `${user.full_name} changed the status from ${LABEL[a.status]} to ${LABEL[status]}.` + (note ? ` Note: ${note}` : ""),
             link: `/dashboard.html#outbreak-${a.id}`,
             email: {
-              subject: `[ArmywormGuard] Outbreak #${a.id} is now ${LABEL[status]}`,
+              subject: `[Umurima] Outbreak #${a.id} is now ${LABEL[status]}`,
               heading: `Outbreak #${a.id}: ${LABEL[status]}`,
               lines: [`${user.full_name} changed the status from "${LABEL[a.status]}" to "${LABEL[status]}".`, ...(note ? [note] : [])],
               details: [["Area", where(a)], ["Farmers reporting", String(after.farmer_count)], ["Scans", String(after.scan_count)]],
@@ -170,8 +170,8 @@ export default api(
               link: "/farmer.html#overview",
               email: {
                 subject: confirmed
-                  ? `[ArmywormGuard] Warning: fall armyworm outbreak confirmed near ${where(a)}`
-                  : `[ArmywormGuard] Outbreak alert closed near ${where(a)}`,
+                  ? `[Umurima] Warning: fall armyworm outbreak confirmed near ${where(a)}`
+                  : `[Umurima] Outbreak alert closed near ${where(a)}`,
                 heading: confirmed ? "Fall armyworm outbreak confirmed in your area" : "Outbreak alert closed",
                 lines: confirmed
                   ? [
@@ -180,7 +180,7 @@ export default api(
                       ...(note ? ["Advisor's note: " + note] : []),
                     ]
                   : ["The outbreak alert for your area has been closed. Keep scouting your field regularly.", ...(note ? ["Advisor's note: " + note] : [])],
-                buttonLabel: confirmed ? "Scan a leaf or ask for help" : "Open ArmywormGuard",
+                buttonLabel: confirmed ? "Scan a leaf or ask for help" : "Open Umurima",
               },
             }, { relatedType: "outbreak", relatedId: a.id });
             emailResults.farmers = r2.email;
@@ -213,7 +213,7 @@ export default api(
             body: `${a.farmer_count} farmers, status ${LABEL[a.status]}.`,
             link: `/dashboard.html#outbreak-${a.id}`,
             email: {
-              subject: `[ArmywormGuard] Outbreak #${a.id} assigned to you`,
+              subject: `[Umurima] Outbreak #${a.id} assigned to you`,
               heading: "An outbreak alert was assigned to you",
               lines: ["Please visit the area, check the reports and update the alert status."],
               details: [["Area", where(a)], ["Status", LABEL[a.status]], ["Farmers reporting", String(a.farmer_count)]],

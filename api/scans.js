@@ -239,7 +239,7 @@ export default api(
           "what_ai_saw", "suggested_action", "district", "sector", "latitude", "longitude", "location_source", "counts_for_outbreak"];
         const data = rows.map((s) => [s.id, s.created_at, s.farmer_name, s.farmer_phone, s.crop, s.pest_label, s.pest_detected, s.stage, s.confidence, s.risk_level, s.risk_score,
           s.affected_area, s.recommendation, s.district, s.sector, s.lat, s.lng, s.loc_source, s.qualifies_outbreak]);
-        return csvResponse("armywormguard-scans.csv", head, data);
+        return csvResponse("umurima-scans.csv", head, data);
       },
     },
   },

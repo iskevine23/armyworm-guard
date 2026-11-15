@@ -9,6 +9,21 @@ function resetResult() {
   lastScan = lastSpread = lastOutbreak = lastBasic = null;
   $('resultCard').style.display = 'none';
   $('errorText').textContent = '';
+  if (typeof Motion !== 'undefined') {
+    Motion.ring($('confidenceRing'), 0, null);
+    const g = $('riskGauge');
+    if (g) { g.innerHTML = ''; delete g.dataset.value; }
+  }
+}
+
+// A short entrance so the result does not just pop into existence.
+function revealResultCard() {
+  const card = $('resultCard');
+  if (!card || typeof Motion === 'undefined' || Motion.reduce()) return;
+  card.animate(
+    [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
+    { duration: 380, easing: 'cubic-bezier(.22,.61,.36,1)' }
+  );
 }
 
 function showResultError(msg) {
@@ -30,11 +45,15 @@ function renderHeader(stage, confidence, pestDetected, pest, crop) {
   $('stageBadge').textContent = tl('stage_', stage);
   $('stageBadge').className = 'badge ' + stage;
   $('confidenceText').textContent = t('confidence') + ' ' + Math.round((confidence || 0) * 100) + '%';
+  // the ring repeats the number visually for people who scan a page instead of reading it
+  if (typeof Motion !== 'undefined') Motion.ring($('confidenceRing'), confidence, stage);
   const cropLabel = cropName(crop);
   const cause = pestDetection(pestDetected, pest);
   $('verdict').textContent = [cropLabel, pestDetected ? t('pestYes') : t('pestNo'), cause].filter(Boolean).join(' · ');
   $('errorText').textContent = '';
+  const wasHidden = $('resultCard').style.display === 'none' || !$('resultCard').style.display;
   $('resultCard').style.display = 'block';
+  if (wasHidden) revealResultCard();
 }
 
 // "Suspected cause: bean rust" — only when the AI actually named something
@@ -59,6 +78,9 @@ function renderFull(scan, spread, outbreak) {
   $('riskScore').textContent = spread ? spread.riskScore : '—';
   $('riskLevel').textContent = spread && spread.riskLevel ? tl('risk_', spread.riskLevel) : '—';
   $('spreadRate').textContent = spread ? spread.estimatedSpreadKmPerWeek : '—';
+  if (typeof Motion !== 'undefined' && $('riskGauge')) {
+    Motion.gauge($('riskGauge'), spread ? spread.riskScore : 0, t('riskScore').toUpperCase());
+  }
 
   let basis = '';
   if (!spread) basis = t('basisNoLoc');
