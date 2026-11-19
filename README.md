@@ -7,6 +7,18 @@ serious damage close together, the system raises an outbreak alert and emails ad
 
 Static pages + Vercel serverless functions + PostgreSQL. No framework, no build step.
 
+### Naming
+
+The product is **Umurima**. The addresses around it deliberately keep the historical ArmywormGuard
+name, because people already have them and they are not worth breaking:
+
+- Vercel projects and URLs: `armyworm-guard` (https://armyworm-guard.vercel.app) and
+  `armyworm-guard-demo` (https://armyworm-guard-demo.vercel.app)
+- the sending mailbox `armywormguard@gmail.com`, and the `EMAIL_FROM` display name built on it
+- the GitHub repository `iskevine23/armyworm-guard`
+
+Only the name a farmer sees in the app is Umurima. Do not "fix" the list above to Umurima.
+
 ## What each person can do
 
 | | Visitor | Farmer | Advisor | Administrator |
