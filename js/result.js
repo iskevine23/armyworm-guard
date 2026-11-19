@@ -45,10 +45,13 @@ function cropName(id) {
 
 // The nutrient block: shown to visitors too, because the name alone lets them ask an agronomist
 // about it. Visitors get the short caution from i18n; the full fix only comes with an account.
-function renderNutrient(n) {
+function renderNutrient(n, pestDetected) {
   const box = $('nutrientBox');
   if (!box) return;
   if (!n || !n.code) { box.style.display = 'none'; return; }
+  // a shortage can sit next to a pest: then the box is an "also", not the headline
+  const title = box.querySelector('[data-i18n="nutrientTitle"]');
+  if (title) title.textContent = pestDetected ? t('nutrientAlso') : t('nutrientTitle');
   $('nutrientName').textContent = n.label || '';
   $('nutrientConfidence').textContent = n.confidence != null ? t('confidence') + ' ' + Math.round(n.confidence * 100) + '%' : '';
   const signs = $('nutrientSigns');
@@ -57,6 +60,14 @@ function renderNutrient(n) {
   $('nutrientAdvice').textContent = n.advice || t('nutrientLocked');
   $('nutrientCaution').textContent = n.caution || t('nutrientCaution');
   box.style.display = 'block';
+}
+
+// "This streaky leaf could also be a shortage" — shown to visitors and members alike.
+function renderLookAlike(text) {
+  const el = $('lookAlikeNote');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.display = text ? 'block' : 'none';
 }
 
 function renderHeader(stage, confidence, pestDetected, pest, crop, nutrient) {
@@ -70,7 +81,7 @@ function renderHeader(stage, confidence, pestDetected, pest, crop, nutrient) {
   // when nothing is eating the leaf but the colour is wrong, say so in the verdict too
   const nutrientLine = !pestDetected && nutrient && nutrient.code ? t('nutrientSuspected') : '';
   $('verdict').textContent = [cropLabel, pestDetected ? t('pestYes') : nutrientLine || t('pestNo'), cause].filter(Boolean).join(' · ');
-  renderNutrient(nutrient);
+  renderNutrient(nutrient, pestDetected);
   $('errorText').textContent = '';
   const wasHidden = $('resultCard').style.display === 'none' || !$('resultCard').style.display;
   $('resultCard').style.display = 'block';
@@ -85,6 +96,7 @@ function pestDetection(pestDetected, pest) {
 function renderBasic(d) {
   lastBasic = d;
   renderHeader(d.stage, d.confidence, d.pestDetected, d.pest, d.crop, d.nutrient);
+  renderLookAlike(d.lookAlike);
   if ($('fullBox')) $('fullBox').style.display = 'none';
   if ($('lockedBox')) $('lockedBox').style.display = 'block';
 }
@@ -92,6 +104,7 @@ function renderBasic(d) {
 function renderFull(scan, spread, outbreak) {
   lastScan = scan; lastSpread = spread; lastOutbreak = outbreak;
   renderHeader(scan.stage, scan.confidence, scan.pestDetected, scan.pest, scan.crop, scan.nutrient);
+  renderLookAlike(scan.lookAlike);
   if ($('lockedBox')) $('lockedBox').style.display = 'none';
   $('fullBox').style.display = 'block';
   $('affectedArea').textContent = scan.affectedArea || '—';

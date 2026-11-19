@@ -1,7 +1,7 @@
 // Network-first service worker: always tries the network so new deployments show up at once,
 // and falls back to the last cached copy when the phone is offline (shell + advisor directory).
 // API calls (and therefore every logged-in data request) are never cached.
-const CACHE = 'umurima-v7';
+const CACHE = 'umurima-v8';
 const SHELL = [
   './', 'index.html', 'login.html', 'farmer.html', 'css/style.css',
   'js/i18n.js', 'js/ui.js', 'js/motion.js', 'js/store.js', 'js/scanner.js', 'js/result.js', 'js/home.js',
