@@ -7,6 +7,18 @@ serious damage close together, the system raises an outbreak alert and emails ad
 
 Static pages + Vercel serverless functions + PostgreSQL. No framework, no build step.
 
+### Naming
+
+The product is **Umurima**. The addresses around it deliberately keep the historical ArmywormGuard
+name, because people already have them and they are not worth breaking:
+
+- Vercel projects and URLs: `armyworm-guard` (https://armyworm-guard.vercel.app) and
+  `armyworm-guard-demo` (https://armyworm-guard-demo.vercel.app)
+- the sending mailbox `armywormguard@gmail.com`, and the `EMAIL_FROM` display name built on it
+- the GitHub repository `iskevine23/armyworm-guard`
+
+Only the name a farmer sees in the app is Umurima. Do not "fix" the list above to Umurima.
+
 ## What each person can do
 
 | | Visitor | Farmer | Advisor | Administrator |
@@ -83,6 +95,46 @@ What changed with it:
   an open alert only accepts scans of its own crop (`outbreak_alerts.crop`).
 - Farmers pick their crops on the scan screen (homepage too) and list what they grow under
   **My farm**.
+
+## Nutrient deficiencies (`lib/nutrients.js`)
+
+The same photo call answers **two** questions: is there pest or disease damage, and does the leaf
+pattern suggest a nutrient problem. The prompt asks for both because they happen together, and the
+model has to say which pattern it saw.
+
+Eight nutrients are covered — nitrogen (N), phosphorus (P), potassium (K), magnesium (Mg),
+calcium (Ca), sulfur (S), iron (Fe) and zinc (Zn). Each entry in `lib/nutrients.js` carries the
+visible signs, the likely cause, and a fix that starts with the cheap, low-risk steps (manure,
+compost, rotation, drainage, correct watering).
+
+The honesty rules are in the code, not just in the docs:
+
+- the app says **"possible nutrient deficiency"**, never "your soil is short of nitrogen"
+- every result ends with the same caution: a photo can only suggest it, so confirm with a soil test
+  or the district agronomist **before buying fertilizer**
+- the app never states a fertilizer dose; it points to the advisor for the rate
+- the assistant is given the same instruction, so it cannot invent a dose either
+- the fix text is written by us and reviewed per language — the model only names the nutrient and
+  describes the pattern it saw, so it cannot hallucinate a product or a rate
+
+What this changes in the data model (migration 4):
+
+| column | meaning |
+|---|---|
+| `scans.issue_type` | `pest`, `nutrient` or `none` |
+| `scans.nutrient` | code from `lib/nutrients.js`, e.g. `nitrogen` |
+| `scans.nutrient_confidence` | 0–1, how strongly the pattern points that way |
+| `scans.nutrient_signs` | what the AI saw, in the farmer's language |
+
+Behaviour that follows from it:
+
+- a deficiency **never counts toward an outbreak** and gets **no spread risk** — a deficiency does
+  not travel from field to field, so the app says that instead of inventing a number
+- visitors see the name, the confidence and the caution; the full fix needs a free account
+- advisors can pull just the deficiency reports with `/api/scans?action=list&issue=nutrient` (or
+  `&nutrient=potassium`), and the CSV export carries `issue_type`, `nutrient`,
+  `nutrient_confidence`
+- adding a nutrient is a data change: one entry in `lib/nutrients.js`
 
 ## Field conditions from NASA POWER (`lib/climate.js`, `api/climate.js`)
 

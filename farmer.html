@@ -108,6 +108,18 @@
         <div class="result-body">
           <p class="verdict" id="verdict"></p>
           <div id="errorText" class="warn"></div>
+
+        <!-- a nutrient deficiency is shown to everyone: the name is useful, the full fix needs an account -->
+        <div class="nutrient-box" id="nutrientBox" style="display:none">
+          <div class="nutrient-head">
+            <span class="pill-status info" data-i18n="nutrientTitle">Possible nutrient deficiency</span>
+            <strong id="nutrientName"></strong>
+            <span class="muted" id="nutrientConfidence"></span>
+          </div>
+          <p class="muted" id="nutrientSigns"></p>
+          <p id="nutrientAdvice"></p>
+          <p class="muted small" id="nutrientCaution"></p>
+        </div>
           <div id="fullBox" style="display:none">
             <p id="affectedArea"></p>
             <div class="label" data-i18n="recAction">Recommended action</div>

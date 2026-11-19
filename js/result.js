@@ -9,6 +9,7 @@ function resetResult() {
   lastScan = lastSpread = lastOutbreak = lastBasic = null;
   $('resultCard').style.display = 'none';
   $('errorText').textContent = '';
+  renderNutrient(null);
   if (typeof Motion !== 'undefined') {
     Motion.ring($('confidenceRing'), 0, null);
     const g = $('riskGauge');
@@ -19,7 +20,7 @@ function resetResult() {
 // A short entrance so the result does not just pop into existence.
 function revealResultCard() {
   const card = $('resultCard');
-  if (!card || typeof Motion === 'undefined' || Motion.reduce()) return;
+  if (!card || typeof card.animate !== 'function' || typeof Motion === 'undefined' || Motion.reduce()) return;
   card.animate(
     [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
     { duration: 380, easing: 'cubic-bezier(.22,.61,.36,1)' }
@@ -32,6 +33,7 @@ function showResultError(msg) {
   $('stageBadge').className = 'badge none';
   $('confidenceText').textContent = '';
   $('verdict').textContent = '';
+  renderNutrient(null);
   $('errorText').textContent = t('wrong') + msg;
   ['lockedBox', 'fullBox'].forEach((id) => { if ($(id)) $(id).style.display = 'none'; });
 }
@@ -41,7 +43,23 @@ function cropName(id) {
   return c ? (lang === 'rw' ? c.rw : c.en) : '';
 }
 
-function renderHeader(stage, confidence, pestDetected, pest, crop) {
+// The nutrient block: shown to visitors too, because the name alone lets them ask an agronomist
+// about it. Visitors get the short caution from i18n; the full fix only comes with an account.
+function renderNutrient(n) {
+  const box = $('nutrientBox');
+  if (!box) return;
+  if (!n || !n.code) { box.style.display = 'none'; return; }
+  $('nutrientName').textContent = n.label || '';
+  $('nutrientConfidence').textContent = n.confidence != null ? t('confidence') + ' ' + Math.round(n.confidence * 100) + '%' : '';
+  const signs = $('nutrientSigns');
+  signs.textContent = n.signs || '';
+  signs.style.display = n.signs ? 'block' : 'none';
+  $('nutrientAdvice').textContent = n.advice || t('nutrientLocked');
+  $('nutrientCaution').textContent = n.caution || t('nutrientCaution');
+  box.style.display = 'block';
+}
+
+function renderHeader(stage, confidence, pestDetected, pest, crop, nutrient) {
   $('stageBadge').textContent = tl('stage_', stage);
   $('stageBadge').className = 'badge ' + stage;
   $('confidenceText').textContent = t('confidence') + ' ' + Math.round((confidence || 0) * 100) + '%';
@@ -49,7 +67,10 @@ function renderHeader(stage, confidence, pestDetected, pest, crop) {
   if (typeof Motion !== 'undefined') Motion.ring($('confidenceRing'), confidence, stage);
   const cropLabel = cropName(crop);
   const cause = pestDetection(pestDetected, pest);
-  $('verdict').textContent = [cropLabel, pestDetected ? t('pestYes') : t('pestNo'), cause].filter(Boolean).join(' · ');
+  // when nothing is eating the leaf but the colour is wrong, say so in the verdict too
+  const nutrientLine = !pestDetected && nutrient && nutrient.code ? t('nutrientSuspected') : '';
+  $('verdict').textContent = [cropLabel, pestDetected ? t('pestYes') : nutrientLine || t('pestNo'), cause].filter(Boolean).join(' · ');
+  renderNutrient(nutrient);
   $('errorText').textContent = '';
   const wasHidden = $('resultCard').style.display === 'none' || !$('resultCard').style.display;
   $('resultCard').style.display = 'block';
@@ -63,18 +84,30 @@ function pestDetection(pestDetected, pest) {
 
 function renderBasic(d) {
   lastBasic = d;
-  renderHeader(d.stage, d.confidence, d.pestDetected, d.pest, d.crop);
+  renderHeader(d.stage, d.confidence, d.pestDetected, d.pest, d.crop, d.nutrient);
   if ($('fullBox')) $('fullBox').style.display = 'none';
   if ($('lockedBox')) $('lockedBox').style.display = 'block';
 }
 
 function renderFull(scan, spread, outbreak) {
   lastScan = scan; lastSpread = spread; lastOutbreak = outbreak;
-  renderHeader(scan.stage, scan.confidence, scan.pestDetected, scan.pest, scan.crop);
+  renderHeader(scan.stage, scan.confidence, scan.pestDetected, scan.pest, scan.crop, scan.nutrient);
   if ($('lockedBox')) $('lockedBox').style.display = 'none';
   $('fullBox').style.display = 'block';
   $('affectedArea').textContent = scan.affectedArea || '—';
   $('recommendation').textContent = scan.recommendation || '—';
+  const isNutrient = scan.issueType === 'nutrient';
+  if (isNutrient) {
+    // nothing spreads, so the gauge would be a made-up number — say why instead
+    $('riskScore').textContent = '—';
+    $('riskLevel').textContent = '—';
+    $('spreadRate').textContent = '—';
+    if (typeof Motion !== 'undefined' && $('riskGauge')) $('riskGauge').innerHTML = '';
+    $('riskBasis').textContent = t('nutrientNoSpread');
+    const note = $('outbreakNote');
+    if (note) note.style.display = 'none';
+    return;
+  }
   $('riskScore').textContent = spread ? spread.riskScore : '—';
   $('riskLevel').textContent = spread && spread.riskLevel ? tl('risk_', spread.riskLevel) : '—';
   $('spreadRate').textContent = spread ? spread.estimatedSpreadKmPerWeek : '—';

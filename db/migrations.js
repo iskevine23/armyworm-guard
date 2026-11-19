@@ -53,6 +53,22 @@ export const MIGRATIONS = [
        WHERE lower(email) LIKE 'demo.%@armywormguard.test';
     `,
   },
+  {
+    version: 4,
+    what: "nutrient deficiencies alongside pests (issue_type, nutrient, nutrient_confidence, nutrient_signs)",
+    sql: `
+      ALTER TABLE scans ADD COLUMN IF NOT EXISTS issue_type TEXT NOT NULL DEFAULT 'none';
+      ALTER TABLE scans ADD COLUMN IF NOT EXISTS nutrient TEXT;
+      ALTER TABLE scans ADD COLUMN IF NOT EXISTS nutrient_confidence REAL;
+      ALTER TABLE scans ADD COLUMN IF NOT EXISTS nutrient_signs TEXT;
+
+      -- older rows: a detection was a pest, no detection was nothing
+      UPDATE scans SET issue_type = 'pest' WHERE issue_type = 'none' AND pest_detected;
+      UPDATE scans SET issue_type = 'none' WHERE pest_detected = false AND nutrient IS NULL;
+
+      CREATE INDEX IF NOT EXISTS scans_nutrient_idx ON scans (nutrient) WHERE nutrient IS NOT NULL;
+    `,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS.reduce((n, m) => Math.max(n, m.version), 1);

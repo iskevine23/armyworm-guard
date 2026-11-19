@@ -51,6 +51,10 @@ CREATE TABLE IF NOT EXISTS scans (
   crop            TEXT NOT NULL DEFAULT 'maize',                   -- crop id from lib/crops.js
   pest_label      TEXT,                                           -- what the AI blamed, e.g. "bean rust"
   pest_detected   BOOLEAN NOT NULL DEFAULT FALSE,
+  issue_type      TEXT NOT NULL DEFAULT 'none' CHECK (issue_type IN ('pest','nutrient','none')),
+  nutrient        TEXT,                                           -- code from lib/nutrients.js, e.g. "nitrogen"
+  nutrient_confidence REAL,
+  nutrient_signs  TEXT,
   stage           TEXT NOT NULL DEFAULT 'none' CHECK (stage IN ('none','early','moderate','severe')),
   confidence      REAL,
   affected_area   TEXT,
@@ -74,6 +78,7 @@ CREATE INDEX IF NOT EXISTS scans_user_idx ON scans (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS scans_crop_idx ON scans (crop, created_at DESC);
 CREATE INDEX IF NOT EXISTS scans_outbreak_idx ON scans (created_at) WHERE qualifies_outbreak;
 CREATE INDEX IF NOT EXISTS scans_anon_idx ON scans (created_at) WHERE user_id IS NULL;
+CREATE INDEX IF NOT EXISTS scans_nutrient_idx ON scans (nutrient) WHERE nutrient IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS assistance_requests (
   id            BIGSERIAL PRIMARY KEY,

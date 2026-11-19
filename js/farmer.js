@@ -27,6 +27,7 @@ $('langSelect').addEventListener('change', () => {
 
 function toLegacyScan(s) {
   return { id: s.id, ts: s.createdAt, stage: s.stage, confidence: s.confidence, affectedArea: s.affectedArea, recommendation: s.recommendation,
+    nutrient: s.nutrient || null, issueType: s.issueType || null,
     riskLevel: s.riskLevel, riskScore: s.riskScore, lat: s.lat, lng: s.lng, locSource: s.locSource, thumb: s.thumb };
 }
 async function loadProfile() {
@@ -327,7 +328,7 @@ async function sendChat(text) {
   const pending = addChatMsg('model', t('thinking'));
   try {
     const latest = lastScan || SCANS_CACHE[0] || null;
-    const context = latest ? { stage: latest.stage, pest: latest.pest, affectedArea: latest.affectedArea, recommendation: latest.recommendation, riskLevel: latest.riskLevel || '' } : null;
+    const context = latest ? { stage: latest.stage, pest: latest.pest, affectedArea: latest.affectedArea, recommendation: latest.recommendation, riskLevel: latest.riskLevel || '', nutrient: latest.nutrient && latest.nutrient.label ? latest.nutrient.label : '' } : null;
     const d = await API.post('/api/chat', { messages: chatHistory.slice(-7), context, crop: (latest && latest.crop) || currentCrop(), lang });
     pending.textContent = d.reply;
     chatHistory.push({ role: 'model', text: d.reply });
