@@ -17,7 +17,7 @@ import { scanScope } from "../lib/access.js";
 import { csvResponse } from "../lib/csv.js";
 import { formatScan } from "../lib/format.js";
 import { getCrop, normaliseCropId } from "../lib/crops.js";
-import { nutrientLabel } from "../lib/nutrients.js";
+import { nutrientLabel, lookAlikeNote } from "../lib/nutrients.js";
 
 const LOC_SOURCES = ["gps", "farm", "default", "none"];
 
@@ -140,6 +140,8 @@ export default api(
             nutrient: result.nutrient.detected
               ? { code: result.nutrient.code, label: nutrientLabel(result.nutrient.code, lang), confidence: result.nutrient.confidence }
               : null,
+            // a visitor needs this too: "do not pull out plants yet" is safety, not paid content
+            lookAlike: lookAlikeNote(result.pest, lang),
           };
         }
 

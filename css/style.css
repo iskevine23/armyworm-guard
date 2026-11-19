@@ -678,3 +678,14 @@ button:hover::after, a.btn:hover::after{ opacity:1; animation:sheen .8s var(--ea
   .nutrient-head .muted{ font-size:0.8rem; }
   .nutrient-box p{ margin:6px 0; font-size:0.92rem; line-height:1.5; }
   .nutrient-box .small{ font-size:0.78rem; color:var(--husk-dim); margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); }
+
+/* a streaky leaf can be a virus or a shortage — say it where nobody can miss it */
+.look-alike {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-left: 4px solid var(--amber, #d99a1b);
+  background: rgba(217, 154, 27, .1);
+  border-radius: 8px;
+  font-size: .92rem;
+  line-height: 1.45;
+}

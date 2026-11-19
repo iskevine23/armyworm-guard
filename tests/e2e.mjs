@@ -54,7 +54,19 @@ const gemini = http.createServer((req, res) => {
     if (img) {
       const label = Buffer.from(img.inline_data.data, "base64").toString("utf8");
       const prompt = parts.find((p) => p.text)?.text || "";
-      if (label.startsWith("nutrient")) {
+      if (label.startsWith("streak")) {
+        // "streak virus|both <stage>" -> yellow streaks the model may read as maize streak virus
+        const mode = label.split(/[\s-]+/)[1] || "both";
+        const sev = label.split(/[\s-]+/)[2] || "moderate";
+        text = JSON.stringify({
+          pestDetected: true, pest: "maize streak virus", confidence: 0.9, stage: sev,
+          affectedArea: "broken yellow streaks along the veins; it could also be a shortage of magnesium",
+          recommendation: "check the youngest leaves for leafhoppers before pulling out any plant",
+          nutrientDetected: mode === "both", nutrient: mode === "both" ? "magnesium" : "none",
+          nutrientConfidence: mode === "both" ? 0.62 : 0,
+          nutrientSigns: mode === "both" ? "yellow between the veins while the veins stay green" : "",
+        });
+      } else if (label.startsWith("nutrient")) {
         // "nutrient <code> <stage>" -> a photo of an evenly yellowing leaf, no insects
         const [, code = "nitrogen", sev = "moderate"] = label.split(/[\s-]+/);
         text = JSON.stringify({
@@ -516,6 +528,31 @@ try {
     assert.match(csv.data, /"nutrient","potassium"/);
     expect(await f1.get("/api/scans?action=list&issue=wrong"), 400);
   });
+  await step("a streaky leaf is not written off as a virus: the shortage is kept and the caution is shown", async () => {
+    const c = new Client("visitor4");
+    const first = expect(await c.post("/api/scans", { image: img("streak both moderate"), mediaType: "image/jpeg", lang: "en" }), 200);
+    // a pest still wins the flag (outbreaks are about pests), but the shortage is not thrown away
+    assert.equal(first.issueType, "pest");
+    assert.equal(first.pest, "maize streak virus");
+    assert.equal(first.nutrient.code, "magnesium", "the deficiency answer survives next to the virus");
+    assert.match(first.lookAlike || "", /magnesium/i, "a visitor is told the streak could be a shortage");
+    const d = expect(await f1.post("/api/scans?action=claim", { scanId: first.scanId, claimToken: first.claimToken, locSource: "gps", lat: X.lat, lng: X.lng }), 200);
+    assert.equal(d.scan.issueType, "pest");
+    assert.equal(d.scan.nutrient.code, "magnesium");
+    assert.ok(d.spread && d.spread.riskScore > 0, "a pest scan still gets its spread estimate");
+    assert.match(d.scan.lookAlike, /magnesium/i);
+  });
+  await step("even a bare virus result tells the farmer to confirm before pulling out plants", async () => {
+    const d = expect(await f1.post("/api/scans", { image: img("streak virus early"), mediaType: "image/jpeg", lang: "en", locSource: "farm" }), 200);
+    assert.equal(d.scan.nutrient, null, "no deficiency was flagged this time");
+    assert.match(d.scan.lookAlike, /magnesium/i);
+    assert.match(d.scan.lookAlike, /soil test|agronomist/i, "confirm before acting");
+  });
+  await step("the caution speaks Kinyarwanda too", async () => {
+    const d = expect(await f1.post("/api/scans", { image: img("streak virus early"), mediaType: "image/jpeg", lang: "rw", locSource: "farm" }), 200);
+    assert.match(d.scan.lookAlike, /magesiyumu/i);
+  });
+
   await step("the assistant is told about the flagged nutrient, not told to guess a dose", async () => {
     const d = expect(await f1.post("/api/chat", { messages: [{ role: "user", text: "my maize is yellow, what fertilizer?" }], context: { stage: "early", pest: "none", nutrient: "Potassium (K)" }, crop: "maize", lang: "en" }), 200);
     assert.ok(d.reply && d.reply.length > 10);

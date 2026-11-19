@@ -117,6 +117,30 @@ The honesty rules are in the code, not just in the docs:
 - the fix text is written by us and reviewed per language — the model only names the nutrient and
   describes the pattern it saw, so it cannot hallucinate a product or a rate
 
+### Yellow streaks: the hardest call in the app
+
+A photograph cannot separate maize streak virus from a magnesium, nitrogen or iron shortage — they are
+all "yellow lines on a maize leaf". The first version got this wrong in the obvious way: the maize
+pest list described streak virus as "broken yellow streaks along the veins", the model named the
+virus with 95% confidence, and the deficiency question was dropped because the prompt said not to
+name a nutrient when a pest explained the pattern better.
+
+Three things changed:
+
+- the pest entry and the prompt now give the *discriminating* signs: a virus has sharp broken streaks
+  on the **youngest** leaves with stunting; magnesium yellows **between** the veins of **older**
+  leaves while the veins stay green; nitrogen fades the whole older leaf in a V from the tip; iron
+  hits the youngest leaves first; potassium scorches the edges
+- the model must answer the nutrient question even when it also names a disease, and must say in its
+  own words when the pattern could be either
+- whenever a virus, streak or mosaic is named, `lookAlikeNote()` in `lib/nutrients.js` attaches a
+  fixed caution — in both languages, shown to visitors too — saying the streaks could be a shortage
+  and to confirm with a soil test or the agronomist **before pulling out any plant**. The vision
+  prompt also forbids telling a farmer to destroy plants on an unconfirmed photo diagnosis
+
+A scan can therefore carry a pest *and* a deficiency; the pest still wins `issue_type` (outbreaks
+are about pests) and the deficiency is shown as "could also be a nutrient shortage".
+
 What this changes in the data model (migration 4):
 
 | column | meaning |
