@@ -10,6 +10,12 @@ function scanCardEl(s, opts) {
     h('div.scan-top', stageBadge(s.stage), h('span.dist', fmtTime(s.createdAt))),
     s.affectedArea ? h('p.scan-text', s.affectedArea) : null,
     s.recommendation ? h('p.scan-text.dim', s.recommendation) : null,
+    s.nutrient && s.nutrient.label
+      ? h('p.scan-text',
+          h('span.pill-status.info', typeof t === 'function' ? t('nutrientTitle') : 'nutrient deficiency'), ' ',
+          h('strong', s.nutrient.label),
+          s.nutrient.confidence != null ? ' · ' + pct(s.nutrient.confidence) : '')
+      : null,
     h('p.scan-text.dim',
       'AI confidence ' + pct(s.confidence),
       s.riskLevel ? ' · ' + (typeof tl === 'function' ? t('riskLevel') + ': ' + tl('risk_', s.riskLevel) : 'risk ' + s.riskLevel) : '',

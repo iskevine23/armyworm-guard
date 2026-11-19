@@ -53,16 +53,29 @@ const gemini = http.createServer((req, res) => {
     let text;
     if (img) {
       const label = Buffer.from(img.inline_data.data, "base64").toString("utf8");
-      const stage = ["severe", "moderate", "early"].find((s) => label.startsWith(s)) || "none";
       const prompt = parts.find((p) => p.text)?.text || "";
-      const pest = prompt.includes("Beans (Ibishyimbo)") ? "bean rust"
-        : prompt.includes("Coffee (Ikawa)") ? "coffee leaf rust"
-        : "fall armyworm";
-      text = JSON.stringify({
-        pestDetected: stage !== "none", pest: stage === "none" ? "none" : pest, confidence: stage === "none" ? 0.9 : 0.85, stage,
-        affectedArea: stage === "none" ? "healthy leaf" : `${stage} window-pane damage in the whorl`,
-        recommendation: stage === "none" ? "keep scouting weekly" : "hand-pick larvae and talk to your advisor",
-      });
+      if (label.startsWith("nutrient")) {
+        // "nutrient <code> <stage>" -> a photo of an evenly yellowing leaf, no insects
+        const [, code = "nitrogen", sev = "moderate"] = label.split(/[\s-]+/);
+        text = JSON.stringify({
+          pestDetected: false, pest: "none", confidence: 0.35, stage: sev,
+          affectedArea: "even yellowing of older leaves, no holes, no frass, no insects visible",
+          recommendation: "take the plant to your sector agronomist and ask for a soil test",
+          nutrientDetected: true, nutrient: code, nutrientConfidence: 0.74,
+          nutrientSigns: "yellowing starts at the leaf tip and runs down the midrib in a V",
+        });
+      } else {
+        const stage = ["severe", "moderate", "early"].find((s) => label.startsWith(s)) || "none";
+        const pest = prompt.includes("Beans (Ibishyimbo)") ? "bean rust"
+          : prompt.includes("Coffee (Ikawa)") ? "coffee leaf rust"
+          : "fall armyworm";
+        text = JSON.stringify({
+          pestDetected: stage !== "none", pest: stage === "none" ? "none" : pest, confidence: stage === "none" ? 0.9 : 0.85, stage,
+          affectedArea: stage === "none" ? "healthy leaf" : `${stage} window-pane damage in the whorl`,
+          recommendation: stage === "none" ? "keep scouting weekly" : "hand-pick larvae and talk to your advisor",
+          nutrientDetected: false, nutrient: "none", nutrientConfidence: 0, nutrientSigns: "",
+        });
+      }
     } else {
       text = "Scout 20 plants in a W pattern and check the whorls.";
     }
@@ -467,6 +480,48 @@ try {
     const d = expect(await f1.post("/api/scans", { image: img("early"), locSource: "gps", lat: X.lat, lng: X.lng }), 200);
     assert.equal(d.scan.crop, "maize");
   });
+  console.log("Nutrient deficiencies");
+  await step("a visitor sees the suspected deficiency by name, but not the full advice", async () => {
+    const c = new Client("visitor2");
+    const d = expect(await c.post("/api/scans", { image: img("nutrient nitrogen moderate"), mediaType: "image/jpeg", lang: "en" }), 200);
+    assert.equal(d.basic, true);
+    assert.equal(d.issueType, "nutrient");
+    assert.equal(d.pestDetected, false);
+    assert.equal(d.nutrient.code, "nitrogen");
+    assert.equal(d.nutrient.label, "Nitrogen (N)");
+    assert.equal(Math.round(d.nutrient.confidence * 100), 74);
+    assert.equal(d.nutrient.advice, undefined, "the full fix needs an account");
+  });
+  await step("a deficiency scan keeps the advice, never counts for outbreaks, and has no spread risk", async () => {
+    const c = new Client("visitor3");
+    const first = expect(await c.post("/api/scans", { image: img("nutrient potassium early"), mediaType: "image/jpeg", lang: "en" }), 200);
+    const d = expect(await f1.post("/api/scans?action=claim", { scanId: first.scanId, claimToken: first.claimToken, locSource: "gps", lat: X.lat, lng: X.lng }), 200);
+    assert.equal(d.basic, false);
+    assert.equal(d.scan.issueType, "nutrient");
+    assert.equal(d.scan.nutrient.code, "potassium");
+    assert.equal(d.scan.nutrient.confidence, 0.74);
+    assert.match(d.scan.nutrient.advice, /soil test|MOP|manure/i);
+    assert.match(d.scan.nutrient.caution, /soil test/i);
+    assert.equal(d.scan.qualifiesOutbreak, false);
+    assert.equal(d.outbreak.action, "none");
+    assert.equal(d.spread, null, "nothing spreads, so no spread number is invented");
+  });
+  await step("deficiency reports are filterable and appear in the CSV export", async () => {
+    const list = expect(await f1.get("/api/scans?action=list&issue=nutrient"), 200);
+    assert.ok(list.scans.length >= 1, "at least one deficiency scan");
+    assert.ok(list.scans.every((x) => x.issueType === "nutrient"));
+    const csv = await f1.get("/api/scans?action=export");
+    assert.equal(csv.status, 200);
+    assert.match(csv.data, /"issue_type","nutrient","nutrient_confidence"/, "CSV has the new columns");
+    assert.match(csv.data, /"nutrient","potassium"/);
+    expect(await f1.get("/api/scans?action=list&issue=wrong"), 400);
+  });
+  await step("the assistant is told about the flagged nutrient, not told to guess a dose", async () => {
+    const d = expect(await f1.post("/api/chat", { messages: [{ role: "user", text: "my maize is yellow, what fertilizer?" }], context: { stage: "early", pest: "none", nutrient: "Potassium (K)" }, crop: "maize", lang: "en" }), 200);
+    assert.ok(d.reply && d.reply.length > 10);
+    assert.doesNotMatch(d.reply, /kg per hectare|bags per hectare/i, "no invented fertilizer dose");
+  });
+
   await step("field conditions are private and need a location", async () => {
     expect(await anon.get("/api/climate?action=field"), 401);
     const landless = new Client("landless");

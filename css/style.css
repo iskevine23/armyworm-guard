@@ -669,3 +669,12 @@ button:hover::after, a.btn:hover::after{ opacity:1; animation:sheen .8s var(--ea
   [data-reveal]{ opacity:1 !important; transform:none !important; }
   .hero-art .vein{ stroke-dashoffset:0 !important; }
 }
+
+  /* ---------- nutrient deficiency callout (result card) ---------- */
+  .nutrient-box{ margin:16px 0; padding:14px 16px; border-radius:12px; border:1px solid rgba(155,190,114,0.38);
+    background:linear-gradient(135deg, rgba(155,190,114,0.14), rgba(155,190,114,0.04)); }
+  .nutrient-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+  .nutrient-head strong{ font-size:1.02rem; color:var(--husk); }
+  .nutrient-head .muted{ font-size:0.8rem; }
+  .nutrient-box p{ margin:6px 0; font-size:0.92rem; line-height:1.5; }
+  .nutrient-box .small{ font-size:0.78rem; color:var(--husk-dim); margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); }

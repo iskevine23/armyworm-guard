@@ -17,6 +17,7 @@ import { scanScope } from "../lib/access.js";
 import { csvResponse } from "../lib/csv.js";
 import { formatScan } from "../lib/format.js";
 import { getCrop, normaliseCropId } from "../lib/crops.js";
+import { nutrientLabel } from "../lib/nutrients.js";
 
 const LOC_SOURCES = ["gps", "farm", "default", "none"];
 
@@ -47,6 +48,7 @@ async function spreadFor(loc, stage, excludeId) {
   const rows = await many(
     `SELECT lat, lng, stage, created_at FROM scans
       WHERE user_id IS NOT NULL AND stage <> 'none' AND id <> $5 AND loc_source IN ('gps','farm')
+        AND COALESCE(issue_type, 'pest') <> 'nutrient'
         AND created_at >= now() - interval '30 days'
         AND lat BETWEEN $1 AND $2 AND lng BETWEEN $3 AND $4
       ORDER BY created_at DESC LIMIT 1000`,
@@ -63,9 +65,12 @@ async function finalise(req, user, scanId, body) {
   const settings = await getSettings();
   const base = await one("SELECT * FROM scans WHERE id=$1", [scanId]);
   const loc = await resolveLocation(user, body);
-  const spread = await spreadFor(loc, base.stage, base.id);
+  // A deficiency does not spread from field to field, so there is no spread risk to compute and
+  // nothing to count toward an outbreak. The location is still saved, for the advisor's map.
+  const isNutrient = base.issue_type === "nutrient";
+  const spread = isNutrient ? null : await spreadFor(loc, base.stage, base.id);
   const draft = { ...base, lat: loc.lat, lng: loc.lng, loc_source: loc.source };
-  const qualifies = scanQualifies(draft, user, settings);
+  const qualifies = isNutrient ? false : scanQualifies(draft, user, settings);
   const s = await one(
     `UPDATE scans SET user_id=$2, lat=$3, lng=$4, loc_source=$5, district=$6, sector=$7,
             risk_score=$8, risk_level=$9, spread_km_week=$10, qualifies_outbreak=$11, claim_token_hash=NULL
@@ -113,9 +118,12 @@ export default api(
         if (!user) {
           const claim = randomToken(24);
           const row = await one(
-            `INSERT INTO scans (user_id, claim_token_hash, crop, pest_label, pest_detected, stage, confidence, affected_area, recommendation, thumb, lang, model, loc_source)
-             VALUES (NULL,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'none') RETURNING id, created_at`,
-            [sha256(claim), crop, result.pest, result.pestDetected, result.stage, result.confidence, result.affectedArea, result.recommendation, thumb, lang, model]
+            `INSERT INTO scans (user_id, claim_token_hash, crop, pest_label, pest_detected, issue_type, nutrient, nutrient_confidence, nutrient_signs,
+                    stage, confidence, affected_area, recommendation, thumb, lang, model, loc_source)
+             VALUES (NULL,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'none') RETURNING id, created_at`,
+            [sha256(claim), crop, result.pest, result.pestDetected, result.issueType, result.nutrient.code,
+              result.nutrient.detected ? result.nutrient.confidence : null, result.nutrient.signs,
+              result.stage, result.confidence, result.affectedArea, result.recommendation, thumb, lang, model]
           );
           // BASIC result only. Details, spread risk and help need an account.
           return {
@@ -128,16 +136,23 @@ export default api(
             pest: result.pest,
             stage: result.stage,
             confidence: result.confidence,
+            issueType: result.issueType,
+            nutrient: result.nutrient.detected
+              ? { code: result.nutrient.code, label: nutrientLabel(result.nutrient.code, lang), confidence: result.nutrient.confidence }
+              : null,
           };
         }
 
         const row = await one(
-          `INSERT INTO scans (user_id, crop, pest_label, pest_detected, stage, confidence, affected_area, recommendation, thumb, lang, model)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
-          [user.id, crop, result.pest, result.pestDetected, result.stage, result.confidence, result.affectedArea, result.recommendation, thumb, lang, model]
+          `INSERT INTO scans (user_id, crop, pest_label, pest_detected, issue_type, nutrient, nutrient_confidence, nutrient_signs,
+                  stage, confidence, affected_area, recommendation, thumb, lang, model)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`,
+          [user.id, crop, result.pest, result.pestDetected, result.issueType, result.nutrient.code,
+            result.nutrient.detected ? result.nutrient.confidence : null, result.nutrient.signs,
+            result.stage, result.confidence, result.affectedArea, result.recommendation, thumb, lang, model]
         );
         const out = await finalise(req, user, row.id, body);
-        await logActivity(user.id, "scan", "scan", row.id, { stage: result.stage, outbreak: out.outbreak.action }, ip);
+        await logActivity(user.id, "scan", "scan", row.id, { stage: result.stage, issue: result.issueType, nutrient: result.nutrient.code, outbreak: out.outbreak.action }, ip);
         return { basic: false, ...out };
       },
     },
@@ -169,6 +184,8 @@ export default api(
         const add = (sql, v) => { params.push(v); where.push(sql.replace("?", "$" + params.length)); };
         if (q.stage) add("s.stage = ?", oneOf(q.stage, ["none", "early", "moderate", "severe"], { name: "stage" }));
         if (q.pest === "1") where.push("s.pest_detected");
+        if (q.issue) add("s.issue_type = ?", oneOf(q.issue, ["pest", "nutrient", "none"], { name: "issue" }));
+        if (q.nutrient) add("s.nutrient = ?", String(q.nutrient).slice(0, 40));
         if (q.crop) {
           const crop = normaliseCropId(q.crop);
           if (!crop) throw new HttpError(400, "Unknown crop. Call /api/climate?action=crops for the list.");
@@ -236,9 +253,11 @@ export default api(
           scope.params
         );
         const head = ["id", "time", "farmer", "phone", "crop", "suspected_cause", "pest_detected", "damage_stage", "confidence", "spread_risk_level", "spread_risk_score",
-          "what_ai_saw", "suggested_action", "district", "sector", "latitude", "longitude", "location_source", "counts_for_outbreak"];
+          "what_ai_saw", "suggested_action", "district", "sector", "latitude", "longitude", "location_source", "counts_for_outbreak",
+          "issue_type", "nutrient", "nutrient_confidence"];
         const data = rows.map((s) => [s.id, s.created_at, s.farmer_name, s.farmer_phone, s.crop, s.pest_label, s.pest_detected, s.stage, s.confidence, s.risk_level, s.risk_score,
-          s.affected_area, s.recommendation, s.district, s.sector, s.lat, s.lng, s.loc_source, s.qualifies_outbreak]);
+          s.affected_area, s.recommendation, s.district, s.sector, s.lat, s.lng, s.loc_source, s.qualifies_outbreak,
+          s.issue_type, s.nutrient, s.nutrient_confidence]);
         return csvResponse("umurima-scans.csv", head, data);
       },
     },
