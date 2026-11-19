@@ -42,10 +42,14 @@ const Motion = (() => {
     const render = (v) => { el.textContent = v.toFixed(decimals) + suffix; };
     if (reduce() || !to) { render(to); return; }
     const run = () => {
-      const started = performance.now();
-      const dur = 900 + Math.min(900, to * 18);
+      const dur = 900 + Math.min(900, Math.abs(to) * 18);
+      let started = null;
       const tick = (now) => {
-        const p = Math.min(1, (now - started) / dur);
+        // Start from the first frame's own timestamp: a rAF stamp can be older than a
+        // performance.now() taken just before it, which used to make the first frames
+        // negative and the counter jump to numbers like -878 before settling.
+        if (started === null) started = now;
+        const p = Math.min(1, Math.max(0, (now - started) / dur));
         const eased = 1 - Math.pow(1 - p, 3);
         render(to * eased);
         if (p < 1) requestAnimationFrame(tick);
